@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Health Companion</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg: #f8f7f5;
+  --surface: #ffffff;
+  --surface2: #f2f0ed;
+  --border: #e5e2dd;
+  --text: #1a1a1a;
+  --muted: #6b6560;
+  --accent: #2563eb;
+  --accent-bg: #eff6ff;
+  --accent-text: #1d4ed8;
+  --success: #16a34a;
+  --success-bg: #f0fdf4;
+  --warning: #d97706;
+  --warning-bg: #fffbeb;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+  --purple: #7c3aed;
+  --purple-bg: #f5f3ff;
+  --pink: #db2777;
+  --pink-bg: #fdf2f8;
+  --teal: #0d9488;
+  --teal-bg: #f0fdfa;
+  --radius: 10px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* Layout */
+.shell { display: flex; min-height: 100vh; }
+.sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 20px 12px; position: fixed; top: 0; left: 0; height: 100vh; z-index: 10; }
+.main { margin-left: 220px; flex: 1; padding: 24px; max-width: calc(100vw - 220px); }
+
+/* Sidebar */
+.logo-area { padding: 8px 12px 20px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+.logo-row { display: flex; align-items: center; gap: 10px; }
+.logo-icon { width: 34px; height: 34px; border-radius: 8px; background: var(--accent-bg); display: flex; align-items: center; justify-content: center; }
+.logo-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.logo-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: 13.5px; color: var(--muted); transition: all 0.15s; margin-bottom: 2px; }
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: var(--accent-bg); color: var(--accent-text); font-weight: 500; }
+.nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+.nav-badge { margin-left: auto; background: var(--danger); color: white; font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 600; }
+.sidebar-footer { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border); font-size: 11px; color: var(--muted); padding-left: 12px; }
+
+/* Header */
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.page-title { font-size: 22px; font-weight: 600; }
+.page-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.header-actions { display: flex; gap: 8px; }
+
+/* Cards */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); }
+.card-title { font-size: 13px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px; }
+
+/* Buttons */
+.btn { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; font-size: 13px; font-family: inherit; font-weight: 500; transition: all 0.15s; }
+.btn:hover { background: var(--surface2); }
+.btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-danger { background: var(--danger-bg); color: var(--danger); border-color: #fca5a5; }
+.btn-danger:hover { background: #fee2e2; }
+.btn-icon { padding: 6px 8px; background: none; border: none; cursor: pointer; color: var(--muted); font-size: 16px; border-radius: 6px; }
+.btn-icon:hover { background: var(--surface2); color: var(--text); }
+
+/* Forms */
+.form-group { margin-bottom: 12px; }
+.form-group label { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.04em; }
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--text); font-size: 14px; font-family: inherit;
+  transition: border-color 0.15s;
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+/* Grid layouts */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+
+/* Stat cards */
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+.stat-label { font-size: 11px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+.stat-value { font-size: 26px; font-weight: 600; margin: 4px 0 2px; line-height: 1; }
+.stat-unit { font-size: 12px; color: var(--muted); }
+.stat-badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; margin-top: 6px; font-weight: 500; }
+.badge-ok { background: var(--success-bg); color: var(--success); }
+.badge-warn { background: var(--warning-bg); color: var(--warning); }
+.badge-err { background: var(--danger-bg); color: var(--danger); }
+
+/* Alert banner */
+.alert { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.alert-warn { background: var(--warning-bg); color: var(--warning); border: 1px solid #fde68a; }
+.alert-info { background: var(--accent-bg); color: var(--accent-text); border: 1px solid #bfdbfe; }
+.alert-success { background: var(--success-bg); color: var(--success); border: 1px solid #bbf7d0; }
+
+/* Medication list */
+.med-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; }
+.med-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.med-info { flex: 1; }
+.med-name { font-size: 14px; font-weight: 500; }
+.med-detail { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.med-doses { display: flex; gap: 6px; flex-wrap: wrap; }
+.dose-chip { display: flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; font-size: 12px; border: 1px solid var(--border); cursor: pointer; user-select: none; }
+.dose-chip.taken { background: var(--success-bg); color: var(--success); border-color: #bbf7d0; }
+.dose-chip.due { background: var(--warning-bg); color: var(--warning); border-color: #fde68a; }
+
+/* Chat */
+.chat-container { display: flex; flex-direction: column; height: calc(100vh - 140px); max-height: 780px; }
+.chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0; }
+.msg { display: flex; gap: 10px; align-items: flex-start; max-width: 82%; }
+.msg.user { align-self: flex-end; flex-direction: row-reverse; }
+.msg-avatar { width: 30px; height: 30px; border-radius: 50%; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.msg-avatar.ai { background: var(--accent-bg); color: var(--accent-text); }
+.msg-avatar.user { background: var(--surface2); color: var(--muted); }
+.msg-bubble { padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.6; }
+.msg.ai .msg-bubble { background: var(--surface2); border-radius: 4px 14px 14px 14px; }
+.msg.user .msg-bubble { background: var(--accent); color: white; border-radius: 14px 4px 14px 14px; }
+.msg-time { font-size: 10px; color: var(--muted); margin-top: 4px; }
+.chat-footer { background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 var(--radius) var(--radius); padding: 12px; }
+.quick-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.chip { padding: 5px 11px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); font-size: 12px; cursor: pointer; color: var(--muted); transition: all 0.15s; }
+.chip:hover { background: var(--accent-bg); color: var(--accent-text); border-color: var(--accent); }
+.chat-input-row { display: flex; gap: 8px; }
+.chat-input { flex: 1; padding: 10px 14px; border: 1px solid var(--border); border-radius: 24px; background: var(--surface); color: var(--text); font-size: 14px; font-family: inherit; resize: none; height: 42px; }
+.chat-input:focus { outline: none; border-color: var(--accent); }
+.send-btn { width: 42px; height: 42px; border-radius: 50%; background: var(--accent); color: white; border: none; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: opacity 0.15s; }
+.send-btn:hover { opacity: 0.85; }
+
+/* Chart container */
+.chart-wrap { position: relative; width: 100%; }
+
+/* Upload */
+.upload-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 30px; text-align: center; cursor: pointer; transition: all 0.15s; }
+.upload-zone:hover { border-color: var(--accent); background: var(--accent-bg); }
+.upload-zone.dragging { border-color: var(--accent); background: var(--accent-bg); }
+
+/* Records list */
+.record-item { display: flex; align-items: flex-start; gap: 12px; padding: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; }
+.record-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--accent-bg); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.record-name { font-size: 14px; font-weight: 500; }
+.record-date { font-size: 12px; color: var(--muted); }
+.record-analysis { font-size: 13px; color: var(--text); margin-top: 6px; line-height: 1.5; background: var(--surface2); padding: 8px 10px; border-radius: 6px; }
+
+/* Cycle tracker */
+.cycle-card { background: var(--pink-bg); border: 1px solid #fbcfe8; border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+.cycle-history { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.cycle-dot { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; cursor: pointer; }
+
+/* Diet */
+.meal-section { margin-bottom: 20px; }
+.meal-title { font-size: 14px; font-weight: 600; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.food-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.water-tracker { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.water-cup { width: 32px; height: 32px; border-radius: 6px; border: 2px solid var(--teal); display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; }
+.water-cup.filled { background: var(--teal-bg); }
+
+/* Appointments */
+.appt-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; display: flex; gap: 14px; align-items: flex-start; }
+.appt-date-box { min-width: 56px; text-align: center; background: var(--accent-bg); border-radius: 8px; padding: 8px 4px; }
+.appt-day { font-size: 24px; font-weight: 700; color: var(--accent-text); line-height: 1; }
+.appt-month { font-size: 11px; color: var(--accent-text); font-weight: 500; }
+.appt-info { flex: 1; }
+.appt-doctor { font-size: 15px; font-weight: 600; }
+.appt-specialty { font-size: 12px; color: var(--muted); }
+.appt-meta { display: flex; gap: 14px; margin-top: 6px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.appt-meta span { display: flex; align-items: center; gap: 4px; }
+.appt-completed { opacity: 0.5; }
+.appt-actions { display: flex; gap: 6px; }
+
+/* Misc */
+.divider { height: 1px; background: var(--border); margin: 16px 0; }
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.hidden { display: none !important; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+
+/* Loading overlay */
+#loadingOverlay { position: fixed; inset: 0; background: rgba(255,255,255,0.85); display: flex; align-items: center; justify-content: center; z-index: 1000; flex-direction: column; gap: 12px; }
+#loadingOverlay.hidden { display: none; }
+.loading-text { font-size: 14px; color: var(--muted); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 600px) {
+  .sidebar { width: 60px; }
+  .sidebar .nav-item span:not(.icon) { display: none; }
+  .sidebar .logo-title, .sidebar .logo-sub { display: none; }
+  .main { margin-left: 60px; padding: 14px; }
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div id="loadingOverlay">
+  <div class="spinner" style="width:32px;height:32px;border-width:3px;"></div>
+  <div class="loading-text">Loading Health Companion…</div>
+</div>
+
+<div class="shell">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="logo-area">
+      <div class="logo-row">
+        <div class="logo-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <div>
+          <div class="logo-title">HealthMate</div>
+          <div class="logo-sub" id="sidebarDate"></div>
+        </div>
+      </div>
+    </div>
+
+    <nav id="sideNav">
+      <div class="nav-item active" data-tab="chat" onclick="switchTab('chat')">
+        <span class="icon">💬</span><span>AI Chat</span>
+      </div>
+      <div class="nav-item" data-tab="vitals" onclick="switchTab('vitals')">
+        <span class="icon">❤️</span><span>Vitals</span>
+      </div>
+      <div class="nav-item" data-tab="medications" onclick="switchTab('medications')">
+        <span class="icon">💊</span><span>Medications</span>
+        <span class="nav-badge hidden" id="medBadge">0</span>
+      </div>
+      <div class="nav-item" data-tab="records" onclick="switchTab('records')">
+        <span class="icon">📋</span><span>Records</span>
+      </div>
+      <div class="nav-item" data-tab="cycle" onclick="switchTab('cycle')">
+        <span class="icon">🌸</span><span>Cycle</span>
+      </div>
+      <div class="nav-item" data-tab="diet" onclick="switchTab('diet')">
+        <span class="icon">🥗</span><span>Diet</span>
+      </div>
+      <div class="nav-item" data-tab="appointments" onclick="switchTab('appointments')">
+        <span class="icon">📅</span><span>Appointments</span>
+        <span class="nav-badge hidden" id="apptBadge">0</span>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer" id="apiStatus">
+      <div id="apiStatusDot">⚙️ Checking API…</div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="main" id="mainContent"></div>
+</div>
+
+<script>
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('sidebarDate').textContent = new Date().toLocaleDateString('en-IN', {day:'numeric',month:'short'});
+
+let vitalsChart = null;
+
+// ─── Tab Router ─────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.tab === tab));
+  const main = document.getElementById('mainContent');
+  main.innerHTML = '';
+  if (tab === 'chat') renderChat();
+  else if (tab === 'vitals') renderVitals();
+  else if (tab === 'medications') renderMedications();
+  else if (tab === 'records') renderRecords();
+  else if (tab === 'cycle') renderCycle();
+  else if (tab === 'diet') renderDiet();
+  else if (tab === 'appointments') renderAppointments();
+}
+
+// ─── CHAT ────────────────────────────────────────────────────────────
+async function renderChat() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">AI Health Chat</div><div class="page-sub">Ask anything about your health, medications, or records</div></div>
+      <button class="btn btn-sm" onclick="clearChat()">Clear history</button>
+    </div>
+    <div class="chat-container">
+      <div class="chat-messages" id="chatMsgs"><div style="text-align:center;color:var(--muted);font-size:13px;padding:20px">Loading conversation…</div></div>
+      <div class="chat-footer">
+        <div class="quick-chips">
+          <div class="chip" onclick="quickMsg('How are my vitals looking today?')">Today's vitals</div>
+          <div class="chip" onclick="quickMsg('What medications do I need to take today?')">My medications</div>
+          <div class="chip" onclick="quickMsg('Give me healthy eating tips for today')">Diet tips</div>
+          <div class="chip" onclick="quickMsg('Do I have any upcoming doctor appointments?')">Appointments</div>
+          <div class="chip" onclick="quickMsg('I have a headache, what should I do?')">I have a headache</div>
+          <div class="chip" onclick="quickMsg('What does my health record say?')">My records</div>
+        </div>
+        <div class="chat-input-row">
+          <input class="chat-input" id="chatInput" placeholder="Type a message…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}">
+          <button class="send-btn" onclick="sendChat()">➤</button>
+        </div>
+      </div>
+    </div>`;
+  loadChatHistory();
+}
+
+async function loadChatHistory() {
+  const res = await fetch('/api/chat/history');
+  const msgs = await res.json();
+  const container = document.getElementById('chatMsgs');
+  if (!container) return;
+  if (msgs.length === 0) {
+    container.innerHTML = `<div class="msg ai"><div class="msg-avatar ai">AI</div><div><div class="msg-bubble">Hello! I'm your personal health companion. I can see your vitals, medications, records, and appointments. How are you feeling today? 💙</div></div></div>`;
+  } else {
+    container.innerHTML = msgs.map(m => msgHTML(m.role === 'assistant' ? 'ai' : 'user', m.content, m.timestamp)).join('');
+  }
+  container.scrollTop = container.scrollHeight;
+}
+
+function msgHTML(role, content, time) {
+  const t = time ? new Date(time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '';
+  return `<div class="msg ${role}">
+    <div class="msg-avatar ${role}">${role === 'ai' ? 'AI' : 'You'}</div>
+    <div><div class="msg-bubble">${content.replace(/\n/g,'<br>')}</div>${t?`<div class="msg-time">${t}</div>`:''}</div>
+  </div>`;
+}
+
+function quickMsg(text) {
+  document.getElementById('chatInput').value = text;
+  sendChat();
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const text = input?.value.trim();
+  if (!text) return;
+  input.value = '';
+  const container = document.getElementById('chatMsgs');
+  container.innerHTML += msgHTML('user', text, new Date().toISOString());
+  const typing = document.createElement('div');
+  typing.id = 'typing'; typing.className = 'msg ai';
+  typing.innerHTML = `<div class="msg-avatar ai">AI</div><div class="msg-bubble"><span class="spinner"></span>Thinking…</div>`;
+  container.appendChild(typing);
+  container.scrollTop = container.scrollHeight;
+
+  const res = await fetch('/api/chat', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text})});
+  const data = await res.json();
+  document.getElementById('typing')?.remove();
+  container.innerHTML += msgHTML('ai', data.reply || 'Sorry, something went wrong.', new Date().toISOString());
+  container.scrollTop = container.scrollHeight;
+}
+
+async function clearChat() {
+  if (!confirm('Clear all chat history?')) return;
+  await fetch('/api/chat/clear', {method:'POST'});
+  loadChatHistory();
+}
+
+// ─── VITALS ─────────────────────────────────────────────────────────
+async function renderVitals() {
+  const gfRes = await fetch('/api/googlefit/status');
+  const gfStatus = await gfRes.json();
+  const gfConnected = gfStatus.authenticated;
+  document.getElementById('mainContent').innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Vitals Tracker</div><div class="page-sub">Monitor oxygen, heart rate, blood pressure & temperature</div></div>
+      <div class="header-actions">
+        ${gfConnected
+          ? `<button class="btn btn-primary" onclick="syncGoogleFit()" id="syncBtn">📱 Sync from Watch</button>`
+          : `<a href="/googlefit-setup" target="_blank"><button class="btn">🔗 Connect Fastrack Watch</button></a>`
+        }
+      </div>
+    </div>
+    <div id="syncStatus"></div>
+    <div id="vitalsTop"></div>
+    <div class="grid-2" style="margin-bottom:20px">
+      <div class="card">
+        <div class="card-title">Log New Reading</div>
+        <div class="form-row"><div class="form-group"><label>O2 Saturation (%)</label><input type="number" id="v-o2" min="70" max="100" placeholder="98"></div>
+        <div class="form-group"><label>Heart Rate (bpm)</label><input type="number" id="v-hr" min="30" max="220" placeholder="72"></div></div>
+        <div class="form-row"><div class="form-group"><label>BP Systolic (mmHg)</label><input type="number" id="v-bps" placeholder="120"></div>
+        <div class="form-group"><label>BP Diastolic (mmHg)</label><input type="number" id="v-bpd" placeholder="80"></div></div>
+        <div class="form-row"><div class="form-group"><label>Temperature (°F)</label><input type="number" id="v-temp" step="0.1" placeholder="98.6"></div>
+        <div class="form-group"><label>Notes</label><input type="text" id="v-notes" placeholder="Optional"></div></div>
+        <button class="btn btn-primary" onclick="logVital()">Save Reading</button>
+      </div>
+      <div class="card">
+        <div class="card-title">O2 & Heart Rate — Today</div>
+        <div class="chart-wrap" style="height:200px"><canvas id="vitalsChart"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Recent Readings</div>
+      <div id="vitalsList"></div>
+    </div>`;
+  loadVitals();
+}
+
+async function loadVitals() {
+  const res = await fetch('/api/vitals');
+  const data = await res.json();
+
+  // Latest stats
+  const last = data[0];
+  const topEl = document.getElementById('vitalsTop');
+  if (last) {
+    const o2s = last.oxygen >= 95 ? 'ok' : last.oxygen >= 90 ? 'warn' : 'err';
+    const hrs = (last.heart_rate >= 60 && last.heart_rate <= 100) ? 'ok' : 'warn';
+    const ts = last.temperature <= 99 ? 'ok' : last.temperature <= 100.4 ? 'warn' : 'err';
+    const bpLabel = last.bp_sys && last.bp_dia ? `${last.bp_sys}/${last.bp_dia}` : '—';
+    topEl.innerHTML = `<div class="grid-4" style="margin-bottom:20px">
+      <div class="stat-card"><div class="stat-label">Oxygen</div><div class="stat-value" style="color:var(--accent)">${last.oxygen || '—'}</div><div class="stat-unit">%</div><span class="stat-badge badge-${o2s}">${o2s==='ok'?'Normal':o2s==='warn'?'Low':'Critical'}</span></div>
+      <div class="stat-card"><div class="stat-label">Heart Rate</div><div class="stat-value" style="color:var(--danger)">${last.heart_rate || '—'}</div><div class="stat-unit">bpm</div><span class="stat-badge badge-${hrs}">${hrs==='ok'?'Normal':'Check'}</span></div>
+      <div class="stat-card"><div class="stat-label">Blood Pressure</div><div class="stat-value" style="font-size:20px;color:var(--success)">${bpLabel}</div><div class="stat-unit">mmHg</div><span class="stat-badge badge-ok">Normal</span></div>
+      <div class="stat-card"><div class="stat-label">Temperature</div><div class="stat-value" style="color:var(--warning)">${last.temperature || '—'}</div><div class="stat-unit">°F</div><span class="stat-badge badge-${ts}">${ts==='ok'?'Normal':ts==='warn'?'Mild fever':'High fever'}</span></div>
+    </div>`;
+  }
+
+  // Chart
+  const chartData = data.slice(0, 10).reverse();
+  const ctx = document.getElementById('vitalsChart');
+  if (ctx && chartData.length) {
+    if (vitalsChart) { vitalsChart.destroy(); vitalsChart = null; }
+    vitalsChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: chartData.map(v => v.timestamp.slice(11,16)),
+        datasets: [
+          { label: 'O2 %', data: chartData.map(v => v.oxygen), borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.08)', tension: 0.4, pointRadius: 4 },
+          { label: 'Heart Rate', data: chartData.map(v => v.heart_rate), borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.08)', tension: 0.4, pointRadius: 4 }
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { font: { size: 11 } } } }, scales: { y: { min: 50, max: 120, ticks: { font: { size: 10 } } }, x: { ticks: { font: { size: 10 }, autoSkip: false, maxRotation: 0 } } } }
+    });
+  }
+
+  // Table
+  const listEl = document.getElementById('vitalsList');
+  if (!data.length) { listEl.innerHTML = '<p style="color:var(--muted);font-size:13px">No readings yet. Log your first reading above.</p>'; return; }
+  listEl.innerHTML = `<table style="width:100%;font-size:13px;border-collapse:collapse">
+    <thead><tr style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.05em">${['Time','O2 %','HR (bpm)','BP','Temp °F','Notes'].map(h=>`<th style="padding:6px 10px;text-align:left;font-weight:500">${h}</th>`).join('')}</tr></thead>
+    <tbody>${data.map(v=>`<tr style="border-top:1px solid var(--border)">
+      <td style="padding:8px 10px;color:var(--muted)">${v.timestamp}</td>
+      <td style="padding:8px 10px;font-weight:500;color:${v.oxygen<95?'var(--danger)':'var(--success)'}">${v.oxygen||'—'}</td>
+      <td style="padding:8px 10px">${v.heart_rate||'—'}</td>
+      <td style="padding:8px 10px">${v.bp_sys&&v.bp_dia?v.bp_sys+'/'+v.bp_dia:'—'}</td>
+      <td style="padding:8px 10px;color:${v.temperature>99.5?'var(--warning)':'inherit'}">${v.temperature||'—'}</td>
+      <td style="padding:8px 10px;color:var(--muted)">${v.notes||''}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+async function logVital() {
+  const o2 = document.getElementById('v-o2').value;
+  const hr = document.getElementById('v-hr').value;
+  const bps = document.getElementById('v-bps').value;
+  const bpd = document.getElementById('v-bpd').value;
+  const temp = document.getElementById('v-temp').value;
+  const notes = document.getElementById('v-notes').value;
+  await fetch('/api/vitals', {method:'POST',headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({oxygen:o2||null, heart_rate:hr||null, bp_sys:bps||null, bp_dia:bpd||null, temperature:temp||null, notes})});
+  loadVitals();
+}
+
+// ─── MEDICATIONS ──────────────────────────────────────────────────────
+async function renderMedications() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Medications</div><div class="page-sub">Track doses and mark as taken for today</div></div>
+    </div>
+    <div id="medAlert"></div>
+    <div id="medList"></div>
+    <div class="divider"></div>
+    <div class="card">
+      <div class="card-title">Add New Medication</div>
+      <div class="form-row"><div class="form-group"><label>Medication Name</label><input type="text" id="m-name" placeholder="e.g. Aspirin"></div>
+      <div class="form-group"><label>Dose</label><input type="text" id="m-dose" placeholder="e.g. 81mg"></div></div>
+      <div class="form-row"><div class="form-group"><label>Frequency</label><input type="text" id="m-freq" placeholder="e.g. Once daily"></div>
+      <div class="form-group"><label>Color</label><select id="m-color"><option value="#2563eb">Blue</option><option value="#16a34a">Green</option><option value="#7c3aed">Purple</option><option value="#db2777">Pink</option><option value="#d97706">Orange</option><option value="#dc2626">Red</option></select></div></div>
+      <div id="timesContainer"><div class="form-group"><label>Time 1</label><input type="time" class="med-time-input" value="09:00"></div></div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="btn btn-sm" onclick="addTimeField()">+ Add another time</button>
+      </div>
+      <button class="btn btn-primary" onclick="addMedication()">Add Medication</button>
+    </div>`;
+  loadMedications();
+}
+
+async function loadMedications() {
+  const res = await fetch('/api/medications');
+  const meds = await res.json();
+  const due = meds.filter(m => m.taken.includes(false));
+  const badge = document.getElementById('medBadge');
+  if (due.length > 0) { badge.textContent = due.length; badge.classList.remove('hidden'); }
+  else badge.classList.add('hidden');
+
+  const alertEl = document.getElementById('medAlert');
+  alertEl.innerHTML = due.length
+    ? `<div class="alert alert-warn">⚠️ ${due.length} medication${due.length>1?'s':''} pending today: ${due.map(m=>m.name).join(', ')}</div>`
+    : `<div class="alert alert-success">✅ All medications taken for today!</div>`;
+
+  const listEl = document.getElementById('medList');
+  if (!meds.length) { listEl.innerHTML = '<p style="color:var(--muted);font-size:13px">No medications added yet.</p>'; return; }
+  listEl.innerHTML = meds.map(m => `
+    <div class="med-item">
+      <div class="med-dot" style="background:${m.color}"></div>
+      <div class="med-info">
+        <div class="med-name">${m.name} <span style="font-size:12px;font-weight:400;color:var(--muted)">${m.dose}</span></div>
+        <div class="med-detail">${m.frequency}</div>
+        <div class="med-doses" style="margin-top:6px">
+          ${m.times.map((t,i) => `<div class="dose-chip ${m.taken[i]?'taken':'due'}" onclick="toggleDose(${m.id},${i},${!m.taken[i]})">
+            ${m.taken[i]?'✓':''} ${t}
+          </div>`).join('')}
+        </div>
+      </div>
+      <button class="btn-icon" onclick="deleteMed(${m.id})" title="Remove">🗑</button>
+    </div>`).join('');
+}
+
+function addTimeField() {
+  const c = document.getElementById('timesContainer');
+  const n = c.children.length + 1;
+  const div = document.createElement('div'); div.className = 'form-group';
+  div.innerHTML = `<label>Time ${n}</label><input type="time" class="med-time-input" value="20:00">`;
+  c.appendChild(div);
+}
+
+async function addMedication() {
+  const name = document.getElementById('m-name').value.trim();
+  if (!name) return alert('Please enter a medication name');
+  const times = [...document.querySelectorAll('.med-time-input')].map(i => i.value);
+  await fetch('/api/medications', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    name, dose: document.getElementById('m-dose').value,
+    frequency: document.getElementById('m-freq').value,
+    times, color: document.getElementById('m-color').value
+  })});
+  renderMedications();
+}
+
+async function toggleDose(medId, doseIdx, taken) {
+  await fetch('/api/medications/log', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({med_id:medId,dose_index:doseIdx,taken})});
+  loadMedications();
+}
+
+async function deleteMed(id) {
+  if (!confirm('Remove this medication?')) return;
+  await fetch(`/api/medications/${id}`, {method:'DELETE'});
+  renderMedications();
+}
+
+// ─── RECORDS ──────────────────────────────────────────────────────────
+async function renderRecords() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Health Records</div><div class="page-sub">Upload and AI-analyze lab reports, prescriptions & discharge summaries</div></div>
+    </div>
+    <label for="fileInput">
+      <div class="upload-zone" id="uploadZone">
+        <div style="font-size:40px;margin-bottom:10px">📁</div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:6px">Drop files here or click to upload</div>
+        <div style="font-size:13px;color:var(--muted)">Supported: PDF, PNG, JPG, TXT · Max 16MB per file</div>
+      </div>
+    </label>
+    <input type="file" id="fileInput" style="display:none" accept=".pdf,.txt,.png,.jpg,.jpeg" onchange="uploadRecord(this)">
+    <div id="uploadProgress" class="hidden">
+      <div class="alert alert-info"><span class="spinner"></span>Uploading and analyzing with AI…</div>
+    </div>
+    <div id="recordsList" style="margin-top:16px"></div>`;
+  loadRecords();
+}
+
+async function loadRecords() {
+  const res = await fetch('/api/records');
+  const records = await res.json();
+  const el = document.getElementById('recordsList');
+  if (!records.length) { el.innerHTML = '<p style="color:var(--muted);font-size:13px">No records uploaded yet.</p>'; return; }
+  const icons = {pdf:'📄', png:'🖼', jpg:'🖼', jpeg:'🖼', txt:'📝'};
+  el.innerHTML = records.map(r => `
+    <div class="record-item">
+      <div class="record-icon">${icons[r.file_type]||'📎'}</div>
+      <div style="flex:1">
+        <div class="record-name">${r.original_name}</div>
+        <div class="record-date">${new Date(r.uploaded_at).toLocaleString()}</div>
+        ${r.analysis ? `<div class="record-analysis">${r.analysis}</div>` : ''}
+      </div>
+      <button class="btn-icon" onclick="deleteRecord(${r.id})">🗑</button>
+    </div>`).join('');
+}
+
+async function uploadRecord(input) {
+  const file = input.files[0]; if (!file) return;
+  document.getElementById('uploadProgress').classList.remove('hidden');
+  const form = new FormData(); form.append('file', file);
+  await fetch('/api/records/upload', {method:'POST', body: form});
+  document.getElementById('uploadProgress').classList.add('hidden');
+  loadRecords();
+}
+
+async function deleteRecord(id) {
+  if (!confirm('Delete this record?')) return;
+  await fetch(`/api/records/${id}`, {method:'DELETE'});
+  loadRecords();
+}
+
+// ─── CYCLE TRACKER ────────────────────────────────────────────────────
+async function renderCycle() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Cycle Tracker</div><div class="page-sub">Track menstrual cycle, symptoms & predictions</div></div>
+    </div>
+    <div class="grid-2">
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">Log Period</div>
+          <div class="form-row">
+            <div class="form-group"><label>Start Date</label><input type="date" id="c-start" value="${today}"></div>
+            <div class="form-group"><label>End Date</label><input type="date" id="c-end"></div>
+          </div>
+          <div class="form-group"><label>Flow Intensity</label>
+            <select id="c-flow"><option value="light">Light</option><option value="medium" selected>Medium</option><option value="heavy">Heavy</option><option value="spotting">Spotting</option></select>
+          </div>
+          <div class="form-group"><label>Symptoms (select all that apply)</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px" id="symptomPicker">
+              ${['Cramps','Bloating','Headache','Mood swings','Fatigue','Back pain','Nausea','Tender breasts'].map(s =>
+                `<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" value="${s}"> ${s}</label>`
+              ).join('')}
+            </div>
+          </div>
+          <div class="form-group"><label>Notes</label><input type="text" id="c-notes" placeholder="Any additional notes"></div>
+          <button class="btn btn-primary" onclick="addCycle()">Save Entry</button>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-title">Cycle History</div>
+          <div id="cycleHistory"></div>
+        </div>
+      </div>
+    </div>`;
+  loadCycle();
+}
+
+async function loadCycle() {
+  const res = await fetch('/api/cycle');
+  const cycles = await res.json();
+  const el = document.getElementById('cycleHistory');
+  if (!cycles.length) { el.innerHTML = '<p style="color:var(--muted);font-size:13px">No cycle data yet. Log your first period above.</p>'; return; }
+
+  const avg = cycles.length > 1
+    ? Math.round(cycles.slice(0,-1).reduce((s,c) => s + (c.cycle_length||28), 0) / (cycles.length-1))
+    : 28;
+  const last = cycles[0];
+  const lastStart = new Date(last.start_date);
+  const nextPredicted = new Date(lastStart);
+  nextPredicted.setDate(nextPredicted.getDate() + avg);
+  const daysUntil = Math.round((nextPredicted - new Date()) / 86400000);
+
+  el.innerHTML = `
+    <div style="background:var(--pink-bg);border:1px solid #fbcfe8;border-radius:8px;padding:12px;margin-bottom:14px">
+      <div style="font-size:13px;color:var(--pink);font-weight:500">Next period prediction</div>
+      <div style="font-size:22px;font-weight:700;color:var(--pink);margin:4px 0">${nextPredicted.toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</div>
+      <div style="font-size:12px;color:var(--muted)">${daysUntil > 0 ? `in ${daysUntil} days` : daysUntil === 0 ? 'today' : `${Math.abs(daysUntil)} days ago`} · avg cycle: ${avg} days</div>
+    </div>
+    ${cycles.map(c => {
+      const symptoms = c.symptoms ? JSON.parse(c.symptoms) : [];
+      const flowColors = {light:'#f9a8d4',medium:'#ec4899',heavy:'#9d174d',spotting:'#fda4af'};
+      return `<div style="padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:14px;font-weight:500">🩸 ${new Date(c.start_date).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</div>
+          <span class="tag" style="background:${flowColors[c.flow_intensity]||'#f9a8d4'}22;color:${flowColors[c.flow_intensity]||'#db2777'}">${c.flow_intensity}</span>
+        </div>
+        ${c.end_date?`<div style="font-size:12px;color:var(--muted);margin-top:2px">to ${new Date(c.end_date).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</div>`:''}
+        ${symptoms.length?`<div style="font-size:12px;color:var(--muted);margin-top:4px">${symptoms.join(', ')}</div>`:''}
+        ${c.notes?`<div style="font-size:12px;color:var(--muted);margin-top:2px">${c.notes}</div>`:''}
+      </div>`;
+    }).join('')}`;
+}
+
+async function addCycle() {
+  const symptoms = [...document.querySelectorAll('#symptomPicker input:checked')].map(i => i.value);
+  const start = document.getElementById('c-start').value;
+  const end = document.getElementById('c-end').value;
+  let cycleLen = null;
+  const res = await fetch('/api/cycle');
+  const prev = await res.json();
+  if (prev.length && prev[0].start_date && start) {
+    cycleLen = Math.round((new Date(start) - new Date(prev[0].start_date)) / 86400000);
+  }
+  await fetch('/api/cycle', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    start_date: start, end_date: end,
+    cycle_length: cycleLen,
+    flow_intensity: document.getElementById('c-flow').value,
+    symptoms, notes: document.getElementById('c-notes').value
+  })});
+  loadCycle();
+}
+
+// ─── DIET LOG ─────────────────────────────────────────────────────────
+async function renderDiet() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Diet & Nutrition</div><div class="page-sub">Track meals, calories & water intake</div></div>
+      <input type="date" id="dietDate" value="${today}" onchange="loadDiet()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:var(--surface);color:var(--text)">
+    </div>
+    <div id="dietSummary" style="margin-bottom:20px"></div>
+    <div class="grid-2">
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">Log Meal</div>
+          <div class="form-group"><label>Meal Type</label>
+            <select id="d-meal"><option value="Breakfast">Breakfast</option><option value="Lunch">Lunch</option><option value="Snack">Snack</option><option value="Dinner">Dinner</option></select>
+          </div>
+          <div class="form-group"><label>Food Items</label><input type="text" id="d-food" placeholder="e.g. Rice, dal, vegetables"></div>
+          <div class="form-row">
+            <div class="form-group"><label>Calories (kcal)</label><input type="number" id="d-cal" placeholder="0"></div>
+            <div class="form-group"><label>Water (ml)</label><input type="number" id="d-water" placeholder="0"></div>
+          </div>
+          <div class="form-group"><label>Notes</label><input type="text" id="d-notes" placeholder="Optional"></div>
+          <button class="btn btn-primary" onclick="addDiet()">Log Meal</button>
+        </div>
+      </div>
+      <div id="dietEntries"></div>
+    </div>`;
+  loadDiet();
+}
+
+async function loadDiet() {
+  const date = document.getElementById('dietDate')?.value || today;
+  const res = await fetch(`/api/diet?date=${date}`);
+  const entries = await res.json();
+
+  const totalCal = entries.reduce((s, e) => s + (e.calories || 0), 0);
+  const totalWater = entries.reduce((s, e) => s + (e.water_ml || 0), 0);
+  const waterCups = Math.round(totalWater / 250);
+  const target = 2000;
+  const waterTarget = 8;
+
+  document.getElementById('dietSummary').innerHTML = `
+    <div class="grid-3">
+      <div class="stat-card"><div class="stat-label">Calories today</div><div class="stat-value" style="color:var(--accent)">${totalCal.toLocaleString()}</div><div class="stat-unit">of ${target} kcal target</div>
+        <div style="background:var(--surface2);border-radius:4px;height:6px;margin-top:8px"><div style="background:var(--accent);height:6px;border-radius:4px;width:${Math.min(100,Math.round(totalCal/target*100))}%"></div></div>
+      </div>
+      <div class="stat-card"><div class="stat-label">Water intake</div><div class="stat-value" style="color:var(--teal)">${totalWater}</div><div class="stat-unit">ml (${waterCups} cups)</div>
+        <div style="background:var(--surface2);border-radius:4px;height:6px;margin-top:8px"><div style="background:var(--teal);height:6px;border-radius:4px;width:${Math.min(100,Math.round(waterCups/waterTarget*100))}%"></div></div>
+      </div>
+      <div class="stat-card"><div class="stat-label">Meals logged</div><div class="stat-value">${entries.length}</div><div class="stat-unit">entries today</div><span class="stat-badge ${entries.length>=3?'badge-ok':'badge-warn'}">${entries.length>=3?'Good':'Log more'}</span></div>
+    </div>`;
+
+  const meals = ['Breakfast','Lunch','Snack','Dinner'];
+  const el = document.getElementById('dietEntries');
+  el.innerHTML = meals.map(meal => {
+    const items = entries.filter(e => e.meal_type === meal);
+    return `<div class="meal-section">
+      <div class="meal-title"><span>${meal}</span><span style="font-size:12px;color:var(--muted)">${items.reduce((s,e)=>s+(e.calories||0),0)} kcal</span></div>
+      ${items.length ? items.map(e => `<div class="food-item"><span>${e.food_items || e.notes || '—'}</span><div style="display:flex;align-items:center;gap:8px"><span style="color:var(--muted);font-size:12px">${e.calories||0} kcal</span><button class="btn-icon" onclick="deleteDiet(${e.id})" style="font-size:13px">✕</button></div></div>`).join('') : `<p style="color:var(--muted);font-size:13px;padding:4px 0">None logged</p>`}
+    </div>`;
+  }).join('');
+}
+
+async function addDiet() {
+  const date = document.getElementById('dietDate')?.value || today;
+  await fetch('/api/diet', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    date, meal_type: document.getElementById('d-meal').value,
+    food_items: document.getElementById('d-food').value,
+    calories: parseInt(document.getElementById('d-cal').value)||0,
+    water_ml: parseInt(document.getElementById('d-water').value)||0,
+    notes: document.getElementById('d-notes').value
+  })});
+  loadDiet();
+}
+
+async function deleteDiet(id) {
+  await fetch(`/api/diet/${id}`, {method:'DELETE'});
+  loadDiet();
+}
+
+// ─── APPOINTMENTS ─────────────────────────────────────────────────────
+async function renderAppointments() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Appointments</div><div class="page-sub">Schedule and track doctor visits</div></div>
+    </div>
+    <div id="apptAlert"></div>
+    <div class="grid-2">
+      <div id="apptList"></div>
+      <div class="card">
+        <div class="card-title">Schedule Appointment</div>
+        <div class="form-group"><label>Doctor Name</label><input type="text" id="a-doctor" placeholder="Dr. Name"></div>
+        <div class="form-group"><label>Specialty</label><input type="text" id="a-spec" placeholder="e.g. Cardiologist"></div>
+        <div class="form-row">
+          <div class="form-group"><label>Date</label><input type="date" id="a-date" value="${today}"></div>
+          <div class="form-group"><label>Time</label><input type="time" id="a-time" value="10:00"></div>
+        </div>
+        <div class="form-group"><label>Location / Clinic</label><input type="text" id="a-loc" placeholder="Hospital or clinic name"></div>
+        <div class="form-group"><label>Reason for Visit</label><input type="text" id="a-reason" placeholder="e.g. Follow-up, Check-up"></div>
+        <div class="form-group"><label>Notes</label><textarea id="a-notes" rows="2" placeholder="Any special instructions…"></textarea></div>
+        <button class="btn btn-primary" onclick="addAppointment()">Book Appointment</button>
+      </div>
+    </div>`;
+  loadAppointments();
+}
+
+async function loadAppointments() {
+  const res = await fetch('/api/appointments');
+  const appts = await res.json();
+  const upcoming = appts.filter(a => !a.completed && a.date >= today);
+  const past = appts.filter(a => a.completed || a.date < today);
+
+  const badge = document.getElementById('apptBadge');
+  if (upcoming.length > 0) { badge.textContent = upcoming.length; badge.classList.remove('hidden'); }
+  else badge.classList.add('hidden');
+
+  const alertEl = document.getElementById('apptAlert');
+  const todayAppts = upcoming.filter(a => a.date === today);
+  if (todayAppts.length) alertEl.innerHTML = `<div class="alert alert-warn">📅 You have ${todayAppts.length} appointment${todayAppts.length>1?'s':''} today!</div>`;
+
+  const listEl = document.getElementById('apptList');
+  const renderAppt = (a, isPast) => {
+    const d = new Date(a.date + 'T12:00:00');
+    return `<div class="appt-card ${isPast?'appt-completed':''}">
+      <div class="appt-date-box">
+        <div class="appt-day">${d.getDate()}</div>
+        <div class="appt-month">${d.toLocaleDateString('en-IN',{month:'short'})}</div>
+      </div>
+      <div class="appt-info">
+        <div class="appt-doctor">${a.doctor_name}</div>
+        <div class="appt-specialty">${a.specialty}</div>
+        <div class="appt-meta">
+          ${a.time?`<span>🕐 ${a.time}</span>`:''}
+          ${a.location?`<span>📍 ${a.location}</span>`:''}
+          ${a.reason?`<span>📝 ${a.reason}</span>`:''}
+        </div>
+        ${a.notes?`<div style="font-size:12px;color:var(--muted);margin-top:4px">${a.notes}</div>`:''}
+      </div>
+      <div class="appt-actions">
+        ${!isPast?`<button class="btn btn-sm" onclick="completeAppt(${a.id})">✓ Done</button>`:''}
+        <button class="btn-icon" onclick="deleteAppt(${a.id})">🗑</button>
+      </div>
+    </div>`;
+  };
+
+  listEl.innerHTML = `
+    ${upcoming.length ? '<div class="card-title" style="margin-bottom:10px">Upcoming</div>' + upcoming.map(a => renderAppt(a, false)).join('') : '<p style="color:var(--muted);font-size:13px;margin-bottom:16px">No upcoming appointments.</p>'}
+    ${past.length ? '<div class="card-title" style="margin-top:16px;margin-bottom:10px">Past</div>' + past.map(a => renderAppt(a, true)).join('') : ''}`;
+}
+
+async function addAppointment() {
+  const doctor = document.getElementById('a-doctor').value.trim();
+  if (!doctor) return alert('Please enter doctor name');
+  await fetch('/api/appointments', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    doctor_name: doctor,
+    specialty: document.getElementById('a-spec').value,
+    date: document.getElementById('a-date').value,
+    time: document.getElementById('a-time').value,
+    location: document.getElementById('a-loc').value,
+    reason: document.getElementById('a-reason').value,
+    notes: document.getElementById('a-notes').value
+  })});
+  renderAppointments();
+}
+
+async function completeAppt(id) {
+  await fetch(`/api/appointments/${id}`, {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({completed:1})});
+  loadAppointments();
+}
+
+async function deleteAppt(id) {
+  if (!confirm('Delete this appointment?')) return;
+  await fetch(`/api/appointments/${id}`, {method:'DELETE'});
+  loadAppointments();
+}
+
+
+// ─── Google Fit Sync ──────────────────────────────────────────────
+async function syncGoogleFit() {
+  const btn = document.getElementById('syncBtn');
+  const statusEl = document.getElementById('syncStatus');
+  if (btn) { btn.textContent = '⏳ Syncing…'; btn.disabled = true; }
+  if (statusEl) statusEl.innerHTML = '<div class="alert alert-info"><span class="spinner"></span>Fetching latest data from your Fastrack watch via Google Fit…</div>';
+  try {
+    const res = await fetch('/api/googlefit/sync', {method:'POST'});
+    const d = await res.json();
+    if (d.success) {
+      const v = d.data;
+      const parts = [];
+      if (v.heart_rate) parts.push('Heart Rate: ' + v.heart_rate + ' bpm');
+      if (v.oxygen) parts.push('O2: ' + v.oxygen + '%');
+      if (v.steps) parts.push('Steps: ' + v.steps.toLocaleString());
+      if (v.bp_sys) parts.push('BP: ' + v.bp_sys + '/' + v.bp_dia);
+      if (statusEl) statusEl.innerHTML = '<div class="alert alert-success">✅ Synced! ' + parts.join(' · ') + ' — saved to vitals.</div>';
+      setTimeout(() => loadVitals(), 500);
+    } else {
+      if (statusEl) statusEl.innerHTML = '<div class="alert" style="background:var(--danger-bg);color:var(--danger);border:1px solid #fca5a5">❌ ' + (d.error||'Sync failed') + '</div>';
+    }
+  } catch(e) {
+    if (statusEl) statusEl.innerHTML = '<div class="alert" style="background:var(--danger-bg);color:var(--danger)">❌ Error: ' + e.message + '</div>';
+  }
+  if (btn) { btn.textContent = '📱 Sync from Watch'; btn.disabled = false; }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────
+async function checkApiStatus() {
+  try {
+    const res = await fetch('/api/chat/history');
+    if (res.ok) document.getElementById('apiStatusDot').innerHTML = '🟢 Connected';
+    else document.getElementById('apiStatusDot').innerHTML = '🔴 Error';
+  } catch { document.getElementById('apiStatusDot').innerHTML = '🔴 Offline'; }
+}
+
+window.addEventListener('load', () => {
+  document.getElementById('loadingOverlay').classList.add('hidden');
+  switchTab('chat');
+  checkApiStatus();
+});
+</script>
+</body>
+</html>
