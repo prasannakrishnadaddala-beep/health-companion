@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+health_data.db
+uploads/
+google_fit_token.json
+google_credentials.json
+*.log
+.DS_Store
+venv/
+.venv/
