@@ -48,7 +48,7 @@ def init_db():
     if USE_POSTGRES and PSYCOPG2_OK:
         cur = conn.cursor()
         stmts = [
-            "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, created_at TEXT, google_fit_token TEXT, google_fit_connected INTEGER DEFAULT 0)",
+            "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, created_at TEXT, google_fit_token TEXT, google_fit_connected INTEGER DEFAULT 0, strava_token TEXT)",
             "CREATE TABLE IF NOT EXISTS vitals (id SERIAL PRIMARY KEY, timestamp TEXT NOT NULL, oxygen REAL, heart_rate INTEGER, bp_sys INTEGER, bp_dia INTEGER, temperature REAL, notes TEXT)",
             "CREATE TABLE IF NOT EXISTS medications (id SERIAL PRIMARY KEY, name TEXT NOT NULL, dose TEXT, frequency TEXT, times TEXT, color TEXT, active INTEGER DEFAULT 1)",
             "CREATE TABLE IF NOT EXISTS med_logs (id SERIAL PRIMARY KEY, med_id INTEGER, date TEXT, dose_index INTEGER, taken INTEGER DEFAULT 0, taken_at TEXT)",
@@ -63,7 +63,7 @@ def init_db():
         conn.commit(); cur.close()
     else:
         conn.executescript("""
-            CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, created_at TEXT, google_fit_token TEXT, google_fit_connected INTEGER DEFAULT 0);
+            CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, created_at TEXT, google_fit_token TEXT, google_fit_connected INTEGER DEFAULT 0, strava_token TEXT);
             CREATE TABLE IF NOT EXISTS vitals (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT NOT NULL, oxygen REAL, heart_rate INTEGER, bp_sys INTEGER, bp_dia INTEGER, temperature REAL, notes TEXT);
             CREATE TABLE IF NOT EXISTS medications (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, dose TEXT, frequency TEXT, times TEXT, color TEXT, active INTEGER DEFAULT 1);
             CREATE TABLE IF NOT EXISTS med_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, med_id INTEGER, date TEXT, dose_index INTEGER, taken INTEGER DEFAULT 0, taken_at TEXT);
@@ -722,3 +722,176 @@ with app.app_context():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
+
+# ── Strava Integration ────────────────────────────────────────────────────────
+def get_strava_redirect_uri():
+    base = os.environ.get("APP_BASE_URL","").strip().rstrip("/")
+    if not base:
+        base = "https://" + request.host
+    return f"{base}/strava/callback"
+
+def get_strava_token(username):
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT strava_token FROM users WHERE username=%s",(username,))
+        row = cur.fetchone(); cur.close()
+    else:
+        row = conn.execute("SELECT strava_token FROM users WHERE username=?",(username,)).fetchone()
+        row = dict(row) if row else None
+    conn.close()
+    if row and row.get("strava_token"):
+        try: return json.loads(row["strava_token"])
+        except: return None
+    return None
+
+def save_strava_token(username, token_dict):
+    conn = get_db()
+    tj = json.dumps(token_dict)
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor()
+        cur.execute("UPDATE users SET strava_token=%s WHERE username=%s",(tj,username)); cur.close()
+    else:
+        conn.execute("UPDATE users SET strava_token=? WHERE username=?",(tj,username))
+    conn.commit(); conn.close()
+
+@app.route("/strava/connect")
+@login_required
+def strava_connect():
+    import base64, urllib.parse
+    client_id = os.environ.get("STRAVA_CLIENT_ID","")
+    if not client_id:
+        return redirect("/googlefit-setup?error=strava_not_configured")
+    state = base64.urlsafe_b64encode(session["username"].encode()).decode()
+    params = {
+        "client_id": client_id,
+        "redirect_uri": get_strava_redirect_uri(),
+        "response_type": "code",
+        "approval_prompt": "auto",
+        "scope": "read,activity:read,profile:read_all",
+        "state": state
+    }
+    return redirect("https://www.strava.com/oauth/authorize?" + urllib.parse.urlencode(params))
+
+@app.route("/strava/callback")
+def strava_callback():
+    import base64, urllib.request, urllib.parse, urllib.error
+    code  = request.args.get("code","")
+    error = request.args.get("error","")
+    state = request.args.get("state","")
+    if error or not code:
+        return redirect("/googlefit-setup?strava_error=access_denied")
+    username = None
+    if state:
+        try: username = base64.urlsafe_b64decode(state.encode()).decode()
+        except: pass
+    if not username: username = session.get("username")
+    if not username: return redirect("/login")
+    try:
+        data = urllib.parse.urlencode({
+            "client_id": os.environ.get("STRAVA_CLIENT_ID",""),
+            "client_secret": os.environ.get("STRAVA_CLIENT_SECRET",""),
+            "code": code,
+            "grant_type": "authorization_code"
+        }).encode()
+        req = urllib.request.Request("https://www.strava.com/oauth/token", data=data,
+            headers={"Content-Type":"application/x-www-form-urlencoded"})
+        with urllib.request.urlopen(req) as resp:
+            token_data = json.loads(resp.read().decode())
+        save_strava_token(username, {
+            "access_token": token_data["access_token"],
+            "refresh_token": token_data["refresh_token"],
+            "expires_at": token_data["expires_at"],
+            "athlete": token_data.get("athlete",{})
+        })
+        session.permanent = True
+        session["logged_in"] = True
+        session["username"] = username
+        return redirect("/googlefit-setup?strava_success=1")
+    except Exception as e:
+        return redirect(f"/googlefit-setup?strava_error={str(e)[:60]}")
+
+@app.route("/api/strava/status")
+@login_required
+def strava_status():
+    token = get_strava_token(session.get("username"))
+    configured = bool(os.environ.get("STRAVA_CLIENT_ID"))
+    athlete = token.get("athlete",{}) if token else {}
+    return jsonify({
+        "configured": configured,
+        "connected": bool(token),
+        "athlete_name": athlete.get("firstname","") + " " + athlete.get("lastname",""),
+    })
+
+@app.route("/api/strava/sync", methods=["POST"])
+@login_required
+def strava_sync():
+    import urllib.request, urllib.parse, time
+    username = session.get("username")
+    token = get_strava_token(username)
+    if not token: return jsonify({"success":False,"error":"Strava not connected"}),400
+
+    # Refresh token if expired
+    if time.time() > token.get("expires_at",0) - 300:
+        try:
+            data = urllib.parse.urlencode({
+                "client_id": os.environ.get("STRAVA_CLIENT_ID",""),
+                "client_secret": os.environ.get("STRAVA_CLIENT_SECRET",""),
+                "refresh_token": token["refresh_token"],
+                "grant_type": "refresh_token"
+            }).encode()
+            req = urllib.request.Request("https://www.strava.com/oauth/token", data=data,
+                headers={"Content-Type":"application/x-www-form-urlencoded"})
+            with urllib.request.urlopen(req) as resp:
+                new_token = json.loads(resp.read().decode())
+            token["access_token"] = new_token["access_token"]
+            token["refresh_token"] = new_token["refresh_token"]
+            token["expires_at"] = new_token["expires_at"]
+            save_strava_token(username, token)
+        except Exception as e:
+            return jsonify({"success":False,"error":f"Token refresh failed: {str(e)}"}),400
+
+    # Fetch recent activities
+    try:
+        req = urllib.request.Request(
+            "https://www.strava.com/api/v3/athlete/activities?per_page=5",
+            headers={"Authorization": f"Bearer {token['access_token']}"}
+        )
+        with urllib.request.urlopen(req) as resp:
+            activities = json.loads(resp.read().decode())
+
+        # Save activities as diet/exercise log entries
+        conn = get_db(); saved = 0
+        for act in activities:
+            date = act.get("start_date_local","")[:10]
+            name = act.get("name","Activity")
+            dist = round(act.get("distance",0)/1000, 2)
+            cal  = round(act.get("calories",0))
+            atype = act.get("type","Run")
+            note = f"🏃 Strava: {name} | {dist}km | {atype}"
+            if cal > 0:
+                if USE_POSTGRES and PSYCOPG2_OK:
+                    cur = conn.cursor()
+                    cur.execute("INSERT INTO diet_log (date,meal_type,food_items,calories,water_ml,notes) VALUES (%s,%s,%s,%s,%s,%s)",
+                        (date,"Exercise",name,-cal,0,note)); cur.close()
+                else:
+                    conn.execute("INSERT INTO diet_log (date,meal_type,food_items,calories,water_ml,notes) VALUES (?,?,?,?,?,?)",
+                        (date,"Exercise",name,-cal,0,note))
+                saved += 1
+        conn.commit(); conn.close()
+        return jsonify({"success":True,"activities":len(activities),"saved":saved,
+            "summary":[{"name":a.get("name"),"type":a.get("type"),"distance":round(a.get("distance",0)/1000,2),"calories":round(a.get("calories",0))} for a in activities]})
+    except Exception as e:
+        return jsonify({"success":False,"error":str(e)}),400
+
+@app.route("/api/strava/disconnect", methods=["POST"])
+@login_required
+def strava_disconnect():
+    conn = get_db()
+    u = session.get("username")
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor(); cur.execute("UPDATE users SET strava_token=NULL WHERE username=%s",(u,)); cur.close()
+    else:
+        conn.execute("UPDATE users SET strava_token=NULL WHERE username=?",(u,))
+    conn.commit(); conn.close()
+    return jsonify({"success":True})
