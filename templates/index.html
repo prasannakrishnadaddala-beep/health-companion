@@ -1144,12 +1144,10 @@ async function analyzePhoto(input) {
 }
 
 async function sendDietEmail() {
-  const email = prompt('Enter email address to send the diet report:');
-  if (!email) return;
   const statusEl = document.getElementById('stravaStatus');
-  if (statusEl) statusEl.innerHTML = '<div class="alert alert-info"><span class="spinner"></span>Generating and sending your diet report…</div>';
+  if (statusEl) statusEl.innerHTML = '<div class="alert alert-info"><span class="spinner"></span>Generating and sending your diet report to your registered email…</div>';
   try {
-    const res = await fetch('/api/send-diet-email', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const res = await fetch('/api/send-diet-email', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
     const d = await res.json();
     if (d.status === 'ok') {
       if (statusEl) statusEl.innerHTML = `<div class="alert alert-success">✅ ${d.message}</div>`;
@@ -1266,6 +1264,7 @@ async function renderProfile() {
             <div class="form-group"><label>Full Name</label><input type="text" id="p-name" value="${p.full_name||''}"></div>
             <div class="form-group"><label>Age</label><input type="number" id="p-age" value="${p.age||''}" placeholder="e.g. 28"></div>
           </div>
+          <div class="form-group"><label>Email Address (for diet reports)</label><input type="email" id="p-email" value="${p.email||''}" placeholder="your@email.com"></div>
           <div class="form-row">
             <div class="form-group"><label>Gender</label>
               <select id="p-gender">
@@ -1328,9 +1327,10 @@ async function renderProfile() {
                 <div style="font-size:12px;font-weight:500;margin-top:2px">${n}</div>
               </div>`).join('')}
             </div>
-            <div style="margin-top:14px;padding:12px;background:var(--color-background-info);border-radius:var(--border-radius-md);font-size:13px;color:var(--color-text-info)">
+            <div style="margin-top:14px;padding:12px;background:rgba(0,212,200,0.06);border-radius:var(--border-radius-md);font-size:13px;color:var(--accent)">
               💡 Targets calculated using Mifflin-St Jeor formula based on your age, weight, height and activity level
-            </div>` : `<p style="color:var(--color-text-secondary);font-size:14px">Fill in your profile details and save to see your personalized daily nutrition targets calculated by AI.</p>`}
+            </div>
+            ${p.email ? `<div style="margin-top:10px;padding:10px 12px;background:rgba(0,229,160,0.06);border:1px solid rgba(0,229,160,0.15);border-radius:var(--border-radius-md);font-size:13px;color:var(--success)">📧 Diet reports will be sent to: <strong>${p.email}</strong></div>` : `<div style="margin-top:10px;padding:10px 12px;background:rgba(255,179,71,0.06);border:1px solid rgba(255,179,71,0.15);border-radius:var(--border-radius-md);font-size:13px;color:var(--warning)">⚠️ Add your email above so diet reports reach your inbox</div>`}` : `<p style="color:var(--color-text-secondary);font-size:14px">Fill in your profile details and save to see your personalized daily nutrition targets calculated by AI.</p>`}
           </div>
         </div>
         <div class="card">
@@ -1362,6 +1362,7 @@ function getBmiHtml(p) {
 async function saveProfile() {
   const data = {
     full_name: document.getElementById('p-name').value,
+    email: document.getElementById('p-email').value,
     age: parseInt(document.getElementById('p-age').value)||0,
     gender: document.getElementById('p-gender').value,
     weight_kg: parseFloat(document.getElementById('p-weight').value)||0,
