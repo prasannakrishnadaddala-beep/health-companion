@@ -181,8 +181,9 @@ def googlefit_setup_page():
 def health():
     return jsonify({
         "status": "ok",
-        "db": "postgresql" if (USE_POSTGRES and PSYCOPG2_OK) else "sqlite",
-        "time": datetime.datetime.now().isoformat()
+        "redirect_uri": get_redirect_uri(),
+        "app_base_url": os.environ.get("APP_BASE_URL","not set"),
+        "db": "postgresql" if (USE_POSTGRES and PSYCOPG2_OK) else "sqlite"
     })
 
 # ── Vitals ────────────────────────────────────────────────────────────────────
@@ -553,7 +554,12 @@ except Exception:
     GFIT_OK = False
 
 def get_redirect_uri():
-    base = os.environ.get("APP_BASE_URL", request.host_url.rstrip("/"))
+    base = os.environ.get("APP_BASE_URL", "").strip().rstrip("/")
+    if not base:
+        # fallback: build from request, force https
+        base = "https://" + request.host
+    # Always force https
+    base = base.replace("http://", "https://")
     return f"{base}/googlefit/callback"
 
 def get_user_token(username):
