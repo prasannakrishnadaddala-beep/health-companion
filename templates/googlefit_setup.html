@@ -3,182 +3,156 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Connect Google Fit — Health Companion</title>
+<title>Connect Google Fit</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f8f7f5; color: #1a1a1a; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; }
 .container { max-width: 680px; width: 100%; }
-.header { text-align: center; margin-bottom: 32px; }
-.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
-.header p { color: #6b6560; font-size: 15px; }
-.card { background: white; border: 1px solid #e5e2dd; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
-.step-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: #eff6ff; color: #2563eb; font-weight: 700; font-size: 14px; margin-right: 10px; flex-shrink: 0; }
-.step-title { font-size: 16px; font-weight: 600; display: flex; align-items: center; margin-bottom: 12px; }
-.step-body { font-size: 14px; color: #374151; line-height: 1.7; padding-left: 38px; }
-.step-body ol { padding-left: 18px; }
-.step-body li { margin-bottom: 6px; }
-code { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 2px 6px; font-size: 13px; font-family: 'Courier New', monospace; }
-.btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; font-family: inherit; transition: all 0.15s; }
-.btn-primary { background: #2563eb; color: white; }
-.btn-primary:hover { background: #1d4ed8; }
-.btn-danger { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
-.highlight { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 12px 14px; font-size: 13px; color: #92400e; margin-top: 12px; }
-.success-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px; color: #15803d; font-size: 14px; margin-top: 12px; display: none; }
-.error-box { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; padding: 14px; color: #dc2626; font-size: 14px; margin-top: 12px; display: none; }
-.status-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
-.tag { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
-.tag-ok { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
-.tag-no { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
-.tag-wait { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
-a { color: #2563eb; }
-.divider { height: 1px; background: #e5e2dd; margin: 16px 0; }
+.header { text-align: center; margin-bottom: 28px; }
+h1 { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+.sub { font-size: 14px; color: #6b6560; }
+.card { background: white; border: 1px solid #e5e2dd; border-radius: 12px; padding: 22px 24px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.step-num { display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#eff6ff;color:#2563eb;font-weight:700;font-size:13px;margin-right:10px;flex-shrink:0; }
+.step-title { font-size:15px;font-weight:600;display:flex;align-items:center;margin-bottom:12px; }
+.step-body { font-size:14px;color:#374151;line-height:1.7;padding-left:36px; }
+.step-body ol { padding-left:18px; }
+.step-body li { margin-bottom:6px; }
+code { background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;padding:2px 6px;font-size:12px;font-family:'Courier New',monospace;word-break:break-all; }
+.btn { display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:8px;border:none;cursor:pointer;font-size:14px;font-weight:600;font-family:inherit;transition:all 0.15s;text-decoration:none; }
+.btn-google { background:#4285f4;color:white; }
+.btn-google:hover { background:#3367d6; }
+.btn-red { background:#fee2e2;color:#dc2626;border:1px solid #fca5a5; }
+.highlight { background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 14px;font-size:13px;color:#92400e;margin-top:12px; }
+.success-box { background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:20px;text-align:center;margin-bottom:18px; }
+.success-box h2 { color:#15803d;font-size:19px;margin-bottom:6px; }
+.success-box p { color:#166534;font-size:14px; }
+.error-box { background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:14px;margin-bottom:18px;color:#dc2626;font-size:14px; }
+.status-row { display:flex;gap:8px;flex-wrap:wrap;margin-top:12px; }
+.tag { display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500; }
+.tok { background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0; }
+.tno { background:#fef2f2;color:#dc2626;border:1px solid #fca5a5; }
+a { color:#2563eb; }
+.back { display:inline-flex;align-items:center;gap:5px;color:#6b6560;font-size:14px;text-decoration:none;margin-bottom:18px; }
+.back:hover { color:#1a1a1a; }
 </style>
 </head>
 <body>
 <div class="container">
+  <a class="back" href="/">← Back to app</a>
   <div class="header">
-    <div style="font-size:48px;margin-bottom:12px">🏃‍♀️</div>
+    <div style="font-size:44px;margin-bottom:10px">🏃‍♀️</div>
     <h1>Connect Google Fit</h1>
-    <p>Pull live vitals from your Fastrack watch automatically</p>
+    <p class="sub">Each user connects their own Google account — scales to all of India 🇮🇳</p>
   </div>
 
-  <!-- Status card -->
+  <div id="successBox" class="success-box" style="display:none">
+    <h2>✅ Google Fit Connected!</h2>
+    <p>Your account is linked. Go to Vitals and click <strong>Sync from Watch</strong>.</p>
+    <br><a href="/" class="btn btn-google">Go to Dashboard →</a>
+  </div>
+  <div id="errorBox" class="error-box" style="display:none"></div>
+
   <div class="card">
-    <div class="step-title"><span class="step-num">✓</span> Current Status</div>
-    <div id="statusArea" class="step-body">Checking...</div>
+    <div class="step-title"><span class="step-num">✓</span>Your Status</div>
+    <div id="statusMsg" class="step-body">Checking…</div>
     <div class="status-row">
-      <span id="libsBadge" class="tag tag-wait">Checking libraries…</span>
-      <span id="configBadge" class="tag tag-wait">Checking credentials…</span>
-      <span id="authBadge" class="tag tag-wait">Checking auth…</span>
+      <span id="b1" class="tag tno">…</span>
+      <span id="b2" class="tag tno">…</span>
+      <span id="b3" class="tag tno">…</span>
     </div>
   </div>
 
-  <!-- Step 1 -->
   <div class="card">
-    <div class="step-title"><span class="step-num">1</span> Install Google Libraries</div>
-    <div class="step-body">
-      <p>Open <strong>Command Prompt</strong> and run:</p>
-      <p style="margin:10px 0"><code>pip install google-auth google-auth-oauthlib google-api-python-client</code></p>
-      <p>Then <strong>restart the app</strong> (run.bat) and refresh this page.</p>
-    </div>
-  </div>
-
-  <!-- Step 2 -->
-  <div class="card">
-    <div class="step-title"><span class="step-num">2</span> Create Google Cloud Credentials</div>
+    <div class="step-title"><span class="step-num">1</span>Admin Setup — Google Cloud (one-time only)</div>
     <div class="step-body">
       <ol>
-        <li>Go to <a href="https://console.cloud.google.com/" target="_blank">console.cloud.google.com</a></li>
-        <li>Create a new project → name it <strong>"Health Companion"</strong></li>
-        <li>Go to <strong>APIs & Services → Library</strong></li>
-        <li>Search for <strong>"Fitness API"</strong> → Click Enable</li>
-        <li>Go to <strong>APIs & Services → Credentials</strong></li>
-        <li>Click <strong>Create Credentials → OAuth client ID</strong></li>
-        <li>Application type: <strong>Desktop app</strong></li>
-        <li>Click <strong>Download JSON</strong></li>
-        <li>Rename the file to <code>google_credentials.json</code></li>
-        <li>Place it in your <code>health_companion</code> folder</li>
+        <li>Go to <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a> → New project → <strong>Health Companion</strong></li>
+        <li><strong>APIs & Services → Library → Fitness API → Enable</strong></li>
+        <li><strong>Credentials → Create → OAuth client ID → Web application</strong></li>
+        <li>Authorised redirect URI: <code id="redirectUri">loading…</code></li>
+        <li>Copy <strong>Client ID</strong> and <strong>Client Secret</strong></li>
+        <li><strong>OAuth consent screen</strong> → Publish app (so any Google user can connect)</li>
       </ol>
-      <div class="highlight">⚠️ Also go to <strong>OAuth consent screen</strong> → Add your Gmail as a Test User</div>
-    </div>
-  </div>
-
-  <!-- Step 3 -->
-  <div class="card">
-    <div class="step-title"><span class="step-num">3</span> Connect Your Google Account</div>
-    <div class="step-body">
-      <p>Make sure your <strong>Fastrack Active app</strong> is synced on your phone first, then click the button below. A browser window will open — sign in with the same Google account linked to Google Fit.</p>
-      <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <button class="btn btn-primary" onclick="connectGoogleFit()" id="connectBtn">🔗 Connect Google Fit</button>
-        <button class="btn btn-danger" onclick="disconnectGoogleFit()" id="disconnectBtn" style="display:none">Disconnect</button>
+      <div class="highlight">
+        Add in <strong>Railway → Variables</strong>:<br><br>
+        <code>GOOGLE_CLIENT_ID</code> = your Client ID<br>
+        <code>GOOGLE_CLIENT_SECRET</code> = your Client Secret<br>
+        <code>APP_BASE_URL</code> = <span id="baseUrlShow">loading…</span>
       </div>
-      <div id="connectSuccess" class="success-box">✅ Connected! Go back to the <a href="/">Health Companion app</a> and click the Sync button on the Vitals page.</div>
-      <div id="connectError" class="error-box"></div>
     </div>
   </div>
 
-  <!-- Step 4 -->
   <div class="card">
-    <div class="step-title"><span class="step-num">4</span> Fastrack Watch Setup</div>
+    <div class="step-title"><span class="step-num">2</span>Connect Your Google Account</div>
     <div class="step-body">
-      <ol>
-        <li>Open <strong>Fastrack Active</strong> app on your wife's Android phone</li>
-        <li>Go to <strong>Settings → Connected Apps</strong></li>
-        <li>Enable <strong>Google Fit sync</strong></li>
-        <li>Wear the watch and let it sync (takes ~5 mins)</li>
-        <li>Come back here and click <strong>Connect Google Fit</strong></li>
-      </ol>
-      <div class="highlight">💡 Fastrack Reflex Ultra / Opus series sync heart rate every minute while active. O2 and sleep data sync when you open the app.</div>
+      <p>Each user signs in with their own Google account. Your data stays private.</p>
+      <p style="margin-top:6px;font-size:13px;color:#6b6560">Open Fastrack Active app on your phone → Settings → Google Fit → Enable sync first.</p>
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <a id="connectBtn" href="/googlefit/connect" class="btn btn-google">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12 11h8.533c.044.385.067.78.067 1.184 0 5.394-3.62 9.216-8.6 9.216C5.372 21.4 1 17.028 1 11.6S5.372 1.8 12 1.8c2.7 0 4.96.9 6.733 2.4l-2.7 2.6C14.9 5.7 13.55 5.2 12 5.2c-3.533 0-6.4 2.933-6.4 6.4s2.867 6.4 6.4 6.4c3.067 0 5.2-1.733 5.733-4H12v-3z"/></svg>
+          Sign in with Google
+        </a>
+        <button id="disconnectBtn" class="btn btn-red" onclick="disconnect()" style="display:none">Disconnect</button>
+      </div>
     </div>
   </div>
 
-  <div style="text-align:center;margin-top:16px">
-    <a href="/">← Back to Health Companion</a>
+  <div class="card">
+    <div class="step-title"><span class="step-num">3</span>Supports All Smartwatches via Google Fit</div>
+    <div class="step-body">
+      Works with any device that syncs to Google Fit:<br>
+      <span style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
+        <span class="tag tok">✓ Fastrack</span>
+        <span class="tag tok">✓ Samsung Galaxy Watch</span>
+        <span class="tag tok">✓ Fitbit</span>
+        <span class="tag tok">✓ Mi Band / Xiaomi</span>
+        <span class="tag tok">✓ Garmin</span>
+        <span class="tag tok">✓ Noise</span>
+        <span class="tag tok">✓ boAt</span>
+        <span class="tag tok">✓ Amazfit</span>
+      </span>
+    </div>
   </div>
 </div>
 
 <script>
+const params = new URLSearchParams(window.location.search);
+if (params.get('success') === '1') document.getElementById('successBox').style.display = 'block';
+if (params.get('error')) {
+  const m = {'not_configured':'Admin needs to add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in Railway Variables first.','access_denied':'Sign-in cancelled. Please try again.','exchange_failed':'Sign-in failed. Please try again.'};
+  const eb = document.getElementById('errorBox');
+  eb.textContent = '❌ ' + (m[params.get('error')] || 'Error: ' + params.get('error'));
+  eb.style.display = 'block';
+}
+
+const base = window.location.origin;
+document.getElementById('redirectUri').textContent = base + '/googlefit/callback';
+document.getElementById('baseUrlShow').textContent = base;
+
 async function checkStatus() {
-  try {
-    const res = await fetch('/api/googlefit/status');
-    const d = await res.json();
-
-    document.getElementById('libsBadge').textContent = d.libs_available ? '✓ Libraries installed' : '✗ Libraries missing';
-    document.getElementById('libsBadge').className = 'tag ' + (d.libs_available ? 'tag-ok' : 'tag-no');
-
-    document.getElementById('configBadge').textContent = d.configured ? '✓ Credentials found' : '✗ No credentials file';
-    document.getElementById('configBadge').className = 'tag ' + (d.configured ? 'tag-ok' : 'tag-no');
-
-    document.getElementById('authBadge').textContent = d.authenticated ? '✓ Signed in' : '✗ Not signed in';
-    document.getElementById('authBadge').className = 'tag ' + (d.authenticated ? 'tag-ok' : 'tag-no');
-
-    const statusMsg = d.authenticated
-      ? '🟢 <strong>All set!</strong> Google Fit is connected. Go back to the app and use the Sync button.'
-      : d.configured
-        ? '🟡 Credentials found — click "Connect Google Fit" below to sign in.'
-        : d.libs_available
-          ? '🟡 Libraries installed — follow Step 2 to create credentials.'
-          : '🔴 Start with Step 1 to install the Google libraries.';
-    document.getElementById('statusArea').innerHTML = statusMsg;
-
-    if (d.authenticated) {
-      document.getElementById('connectBtn').style.display = 'none';
-      document.getElementById('disconnectBtn').style.display = 'inline-block';
-    }
-  } catch(e) {
-    document.getElementById('statusArea').textContent = 'Could not reach server.';
+  const res = await fetch('/api/googlefit/status');
+  const d = await res.json();
+  document.getElementById('b1').textContent = d.libs_available ? '✓ Libraries ready' : '✗ Libraries missing';
+  document.getElementById('b1').className = 'tag ' + (d.libs_available ? 'tok' : 'tno');
+  document.getElementById('b2').textContent = d.configured ? '✓ Google app configured' : '✗ Client ID not set';
+  document.getElementById('b2').className = 'tag ' + (d.configured ? 'tok' : 'tno');
+  document.getElementById('b3').textContent = d.authenticated ? '✓ Your account connected' : '✗ Not connected';
+  document.getElementById('b3').className = 'tag ' + (d.authenticated ? 'tok' : 'tno');
+  if (d.authenticated) {
+    document.getElementById('statusMsg').innerHTML = '🟢 <strong>All good!</strong> Your Google Fit is connected. Go to Vitals → Sync from Watch.';
+    document.getElementById('connectBtn').style.display = 'none';
+    document.getElementById('disconnectBtn').style.display = 'inline-flex';
+  } else if (!d.configured) {
+    document.getElementById('statusMsg').innerHTML = '🔴 Admin must add <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code> in Railway Variables first.';
+  } else {
+    document.getElementById('statusMsg').innerHTML = '🟡 Ready — click <strong>Sign in with Google</strong> to connect your account.';
   }
 }
 
-async function connectGoogleFit() {
-  const btn = document.getElementById('connectBtn');
-  btn.textContent = '⏳ Opening browser…';
-  btn.disabled = true;
-  document.getElementById('connectError').style.display = 'none';
-  try {
-    const res = await fetch('/api/googlefit/connect', {method:'POST'});
-    const d = await res.json();
-    if (d.success) {
-      document.getElementById('connectSuccess').style.display = 'block';
-      checkStatus();
-    } else {
-      document.getElementById('connectError').textContent = '❌ ' + d.message;
-      document.getElementById('connectError').style.display = 'block';
-    }
-  } catch(e) {
-    document.getElementById('connectError').textContent = '❌ Connection failed: ' + e.message;
-    document.getElementById('connectError').style.display = 'block';
-  }
-  btn.textContent = '🔗 Connect Google Fit';
-  btn.disabled = false;
-}
-
-async function disconnectGoogleFit() {
+async function disconnect() {
   if (!confirm('Disconnect Google Fit?')) return;
   await fetch('/api/googlefit/disconnect', {method:'POST'});
-  checkStatus();
-  document.getElementById('connectBtn').style.display = 'inline-block';
-  document.getElementById('disconnectBtn').style.display = 'none';
+  location.reload();
 }
 
 checkStatus();
