@@ -667,7 +667,7 @@ def gf_callback():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        err = str(e).replace(" ","_")[:120]
+        err = str(e).replace("\n","").replace("\r","").replace(" ","_")[:100]
         return redirect(f"/googlefit-setup?error={err}")
 
 @app.route("/api/googlefit/disconnect", methods=["POST"])

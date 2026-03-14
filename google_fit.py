@@ -44,30 +44,34 @@ def is_configured():
     return bool(os.environ.get("GOOGLE_CLIENT_ID") and os.environ.get("GOOGLE_CLIENT_SECRET"))
 
 def get_auth_url(redirect_uri, state=None):
-    """Generate Google OAuth URL for a user to click."""
-    if not GOOGLE_LIBS_AVAILABLE or not is_configured():
+    """Build Google OAuth URL manually — no PKCE, fully stateless."""
+    if not is_configured():
         return None
+    import urllib.parse
     config = get_client_config()
-    config["web"]["redirect_uris"] = [redirect_uri]
-    flow = Flow.from_client_config(config, scopes=SCOPES, redirect_uri=redirect_uri)
-    kwargs = {"access_type": "offline", "prompt": "consent"}
+    if not config:
+        return None
+    params = {
+        "client_id": config["web"]["client_id"],
+        "redirect_uri": redirect_uri.rstrip("/"),
+        "response_type": "code",
+        "scope": " ".join(SCOPES),
+        "access_type": "offline",
+        "prompt": "consent",
+    }
     if state:
-        kwargs["state"] = state
-    auth_url, _ = flow.authorization_url(**kwargs)
-    return auth_url
+        params["state"] = state
+    return "https://accounts.google.com/o/oauth2/v2/auth?" + urllib.parse.urlencode(params)
 
 def exchange_code(code, redirect_uri):
-    """Exchange auth code for tokens. Stateless — no flow object needed."""
-    if not GOOGLE_LIBS_AVAILABLE or not is_configured():
+    """Exchange auth code for tokens — stateless, no PKCE."""
+    if not is_configured():
         return None
     config = get_client_config()
     if not config:
         return None
     import urllib.request, urllib.parse, urllib.error
-
-    # Strip any trailing slash to ensure exact match
     redirect_uri = redirect_uri.rstrip("/")
-
     data = urllib.parse.urlencode({
         "code": code,
         "client_id": config["web"]["client_id"],
@@ -75,7 +79,6 @@ def exchange_code(code, redirect_uri):
         "redirect_uri": redirect_uri,
         "grant_type": "authorization_code",
     }).encode()
-
     req = urllib.request.Request(
         "https://oauth2.googleapis.com/token",
         data=data,
@@ -97,8 +100,8 @@ def exchange_code(code, redirect_uri):
             ).isoformat(),
         }
     except urllib.error.HTTPError as e:
-        body = e.read().decode()
-        raise Exception(f"Google token error: {body}")
+        body = e.read().decode().replace("\n", " ").replace("\r", "")
+        raise Exception(f"Google error: {body}")
     except Exception as e:
         raise Exception(f"Token exchange failed: {str(e)}")
 
