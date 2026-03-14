@@ -3,8 +3,12 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, s
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", secrets.token_hex(32))
+app.secret_key = os.environ.get("SECRET_KEY", "healthmate-default-change-this-key")
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 hours
 
 # ── Uploads folder ────────────────────────────────────────────────────────────
 UPLOAD_FOLDER = "/tmp/uploads"
@@ -137,8 +141,20 @@ def login():
                 user = dict(row) if row else None
             conn.close()
             if user:
+                session.permanent = True
                 session["logged_in"] = True
                 session["username"] = u
+                # Handle pending Google Fit OAuth code
+                pending_code = session.pop("pending_gfit_code", None)
+                if pending_code:
+                    try:
+                        redirect_uri = request.host_url.rstrip("/") + "/googlefit/callback"
+                        token_dict = gfit.exchange_code(pending_code, redirect_uri)
+                        if token_dict:
+                            save_user_token(u, token_dict)
+                            return redirect("/googlefit-setup?success=1")
+                    except Exception:
+                        pass
                 return redirect(url_for("index"))
             error = "Invalid username or password."
         except Exception as e:
@@ -533,6 +549,7 @@ try:
     import google_fit as gfit
     GFIT_OK = True
 except Exception:
+    gfit = None
     GFIT_OK = False
 
 def get_redirect_uri():
@@ -602,13 +619,21 @@ def gf_connect():
     return redirect(auth_url)
 
 @app.route("/googlefit/callback")
-@login_required
 def gf_callback():
     """Google redirects here after user approves."""
+    # Session may survive — if not, store code in state and re-auth
     code = request.args.get("code")
     error = request.args.get("error")
     if error or not code:
         return redirect("/googlefit-setup?error=" + (error or "no_code"))
+
+    # If session lost during OAuth redirect, send to login first
+    if not session.get("logged_in"):
+        # Store the code temporarily and redirect to login
+        session["pending_gfit_code"] = code
+        session["pending_gfit_redirect"] = request.url
+        return redirect("/login?next=googlefit")
+
     try:
         token_dict = gfit.exchange_code(code, get_redirect_uri())
         if token_dict:
@@ -616,7 +641,7 @@ def gf_callback():
             return redirect("/googlefit-setup?success=1")
         return redirect("/googlefit-setup?error=exchange_failed")
     except Exception as e:
-        return redirect(f"/googlefit-setup?error={str(e)}")
+        return redirect(f"/googlefit-setup?error=auth_failed")
 
 @app.route("/api/googlefit/disconnect", methods=["POST"])
 @login_required
