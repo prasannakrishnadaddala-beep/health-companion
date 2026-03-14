@@ -710,11 +710,26 @@ async function addCycle() {
 
 // ─── DIET LOG ─────────────────────────────────────────────────────────
 async function renderDiet() {
+  let strava = {connected: false, configured: false};
+  try {
+    const stravaRes = await fetch('/api/strava/status');
+    if (stravaRes.ok) strava = await stravaRes.json();
+  } catch(e) { strava = {connected: false, configured: false}; }
   document.getElementById('mainContent').innerHTML = `
     <div class="page-header">
       <div><div class="page-title">Diet & Nutrition</div><div class="page-sub">Track meals, calories & water intake</div></div>
-      <input type="date" id="dietDate" value="${today}" onchange="loadDiet()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:var(--surface);color:var(--text)">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="date" id="dietDate" value="${today}" onchange="loadDiet()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:var(--surface);color:var(--text)">
+        ${strava.connected
+          ? `<button class="btn btn-primary" onclick="syncStrava()" id="stravaBtn">🏃 Sync Strava</button>
+             <button class="btn btn-sm" onclick="disconnectStrava()" style="font-size:11px;color:var(--muted)">Disconnect</button>`
+          : strava.configured
+            ? `<a href="/strava/connect"><button class="btn" style="background:#fc4c02;color:white;border:none">🏃 Connect Strava</button></a>`
+            : `<a href="/strava/connect"><button class="btn">🏃 Connect Strava</button></a>`
+        }
+      </div>
     </div>
+    <div id="stravaStatus"></div>
     <div id="dietSummary" style="margin-bottom:20px"></div>
     <div class="grid-2">
       <div>
@@ -883,6 +898,34 @@ async function deleteAppt(id) {
   loadAppointments();
 }
 
+
+// ─── Strava Sync ──────────────────────────────────────────────────────
+async function disconnectStrava() {
+  if (!confirm('Disconnect Strava?')) return;
+  await fetch('/api/strava/disconnect', {method:'POST'});
+  renderDiet();
+}
+
+async function syncStrava() {
+  const btn = document.getElementById('stravaBtn');
+  const statusEl = document.getElementById('stravaStatus');
+  if (btn) { btn.textContent = '⏳ Syncing Strava…'; btn.disabled = true; }
+  if (statusEl) statusEl.innerHTML = '<div class="alert alert-info"><span class="spinner"></span>Fetching your activities from Strava…</div>';
+  try {
+    const res = await fetch('/api/strava/sync', {method:'POST'});
+    const d = await res.json();
+    if (d.success) {
+      const acts = (d.summary||[]).map(a => `${a.name} (${a.type}, ${a.distance}km, ${a.calories} cal)`).join(' · ');
+      if (statusEl) statusEl.innerHTML = `<div class="alert alert-success">✅ Synced ${d.activities} Strava activities! ${acts}</div>`;
+      setTimeout(() => loadDiet(), 600);
+    } else {
+      if (statusEl) statusEl.innerHTML = `<div class="alert" style="background:var(--danger-bg);color:var(--danger)">❌ ${d.error}</div>`;
+    }
+  } catch(e) {
+    if (statusEl) statusEl.innerHTML = `<div class="alert" style="background:var(--danger-bg);color:var(--danger)">❌ Error: ${e.message}</div>`;
+  }
+  if (btn) { btn.textContent = '🏃 Sync Strava'; btn.disabled = false; }
+}
 
 // ─── Google Fit Sync ──────────────────────────────────────────────
 async function syncGoogleFit() {
