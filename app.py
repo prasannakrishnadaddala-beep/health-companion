@@ -74,6 +74,28 @@ def init_db():
             CREATE TABLE IF NOT EXISTS chat_history (id INTEGER PRIMARY KEY AUTOINCREMENT, role TEXT, content TEXT, timestamp TEXT);
         """)
         conn.commit()
+    # ── Migrations: add columns if they don't exist ──────────────────
+    migrate_cols = [
+        ("users", "google_fit_token", "TEXT"),
+        ("users", "google_fit_connected", "INTEGER DEFAULT 0"),
+        ("users", "strava_token", "TEXT"),
+    ]
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor()
+        for table, col, coltype in migrate_cols:
+            try:
+                cur.execute(f"ALTER TABLE {table} ADD COLUMN {col} {coltype}")
+                conn.commit()
+            except Exception:
+                conn.rollback()
+        cur.close()
+    else:
+        for table, col, coltype in migrate_cols:
+            try:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {coltype}")
+                conn.commit()
+            except Exception:
+                pass
     conn.close()
 
 def hash_pw(p):
