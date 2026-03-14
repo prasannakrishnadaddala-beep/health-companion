@@ -43,14 +43,17 @@ def get_client_config():
 def is_configured():
     return bool(os.environ.get("GOOGLE_CLIENT_ID") and os.environ.get("GOOGLE_CLIENT_SECRET"))
 
-def get_auth_url(redirect_uri):
+def get_auth_url(redirect_uri, state=None):
     """Generate Google OAuth URL for a user to click."""
     if not GOOGLE_LIBS_AVAILABLE or not is_configured():
         return None
     config = get_client_config()
     config["web"]["redirect_uris"] = [redirect_uri]
     flow = Flow.from_client_config(config, scopes=SCOPES, redirect_uri=redirect_uri)
-    auth_url, _ = flow.authorization_url(access_type="offline", prompt="consent")
+    kwargs = {"access_type": "offline", "prompt": "consent"}
+    if state:
+        kwargs["state"] = state
+    auth_url, _ = flow.authorization_url(**kwargs)
     return auth_url
 
 def exchange_code(code, redirect_uri):
