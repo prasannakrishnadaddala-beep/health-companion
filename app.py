@@ -44,7 +44,7 @@ def init_db():
     if USE_POSTGRES and PSYCOPG2_OK:
         cur = conn.cursor()
         stmts = [
-            "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, created_at TEXT)",
+            "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, created_at TEXT, google_fit_token TEXT, google_fit_connected INTEGER DEFAULT 0)",
             "CREATE TABLE IF NOT EXISTS vitals (id SERIAL PRIMARY KEY, timestamp TEXT NOT NULL, oxygen REAL, heart_rate INTEGER, bp_sys INTEGER, bp_dia INTEGER, temperature REAL, notes TEXT)",
             "CREATE TABLE IF NOT EXISTS medications (id SERIAL PRIMARY KEY, name TEXT NOT NULL, dose TEXT, frequency TEXT, times TEXT, color TEXT, active INTEGER DEFAULT 1)",
             "CREATE TABLE IF NOT EXISTS med_logs (id SERIAL PRIMARY KEY, med_id INTEGER, date TEXT, dose_index INTEGER, taken INTEGER DEFAULT 0, taken_at TEXT)",
@@ -59,7 +59,7 @@ def init_db():
         conn.commit(); cur.close()
     else:
         conn.executescript("""
-            CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, created_at TEXT);
+            CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, created_at TEXT, google_fit_token TEXT, google_fit_connected INTEGER DEFAULT 0);
             CREATE TABLE IF NOT EXISTS vitals (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT NOT NULL, oxygen REAL, heart_rate INTEGER, bp_sys INTEGER, bp_dia INTEGER, temperature REAL, notes TEXT);
             CREATE TABLE IF NOT EXISTS medications (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, dose TEXT, frequency TEXT, times TEXT, color TEXT, active INTEGER DEFAULT 1);
             CREATE TABLE IF NOT EXISTS med_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, med_id INTEGER, date TEXT, dose_index INTEGER, taken INTEGER DEFAULT 0, taken_at TEXT);
@@ -527,47 +527,135 @@ def clear_chat():
         conn.execute("DELETE FROM chat_history")
     conn.commit(); conn.close(); return jsonify({"status":"ok"})
 
-# ── Google Fit ────────────────────────────────────────────────────────────────
+
+# ── Google Fit (Production Web OAuth — multi-user) ────────────────────────────
 try:
     import google_fit as gfit
     GFIT_OK = True
 except Exception:
     GFIT_OK = False
 
+def get_redirect_uri():
+    base = os.environ.get("APP_BASE_URL", request.host_url.rstrip("/"))
+    return f"{base}/googlefit/callback"
+
+def get_user_token(username):
+    """Load Google Fit token for a user from DB."""
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT google_fit_token FROM users WHERE username=%s", (username,))
+        row = cur.fetchone(); cur.close()
+    else:
+        row = conn.execute("SELECT google_fit_token FROM users WHERE username=?", (username,)).fetchone()
+        row = dict(row) if row else None
+    conn.close()
+    if row and row.get("google_fit_token"):
+        try:
+            return json.loads(row["google_fit_token"])
+        except Exception:
+            return None
+    return None
+
+def save_user_token(username, token_dict):
+    """Save updated Google Fit token back to DB."""
+    conn = get_db()
+    token_json = json.dumps(token_dict)
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor()
+        cur.execute("UPDATE users SET google_fit_token=%s, google_fit_connected=1 WHERE username=%s", (token_json, username))
+        cur.close()
+    else:
+        conn.execute("UPDATE users SET google_fit_token=?, google_fit_connected=1 WHERE username=?", (token_json, username))
+    conn.commit(); conn.close()
+
+def clear_user_token(username):
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor()
+        cur.execute("UPDATE users SET google_fit_token=NULL, google_fit_connected=0 WHERE username=%s", (username,))
+        cur.close()
+    else:
+        conn.execute("UPDATE users SET google_fit_token=NULL, google_fit_connected=0 WHERE username=?", (username,))
+    conn.commit(); conn.close()
+
 @app.route("/api/googlefit/status")
 @login_required
 def gf_status():
-    if not GFIT_OK: return jsonify({"libs_available":False,"configured":False,"authenticated":False})
-    return jsonify({"libs_available":gfit.GOOGLE_LIBS_AVAILABLE,"configured":gfit.is_configured(),"authenticated":gfit.is_authenticated()})
+    username = session.get("username")
+    token = get_user_token(username)
+    return jsonify({
+        "libs_available": GFIT_OK and gfit.GOOGLE_LIBS_AVAILABLE,
+        "configured": GFIT_OK and gfit.is_configured(),
+        "authenticated": bool(token)
+    })
 
-@app.route("/api/googlefit/connect", methods=["POST"])
+@app.route("/googlefit/connect")
 @login_required
 def gf_connect():
-    if not GFIT_OK: return jsonify({"success":False,"message":"Google Fit module unavailable"})
-    ok,msg = gfit.authenticate(); return jsonify({"success":ok,"message":msg})
+    """Redirect user to Google OAuth page."""
+    if not GFIT_OK or not gfit.is_configured():
+        return redirect("/googlefit-setup?error=not_configured")
+    auth_url = gfit.get_auth_url(get_redirect_uri())
+    if not auth_url:
+        return redirect("/googlefit-setup?error=no_auth_url")
+    return redirect(auth_url)
+
+@app.route("/googlefit/callback")
+@login_required
+def gf_callback():
+    """Google redirects here after user approves."""
+    code = request.args.get("code")
+    error = request.args.get("error")
+    if error or not code:
+        return redirect("/googlefit-setup?error=" + (error or "no_code"))
+    try:
+        token_dict = gfit.exchange_code(code, get_redirect_uri())
+        if token_dict:
+            save_user_token(session["username"], token_dict)
+            return redirect("/googlefit-setup?success=1")
+        return redirect("/googlefit-setup?error=exchange_failed")
+    except Exception as e:
+        return redirect(f"/googlefit-setup?error={str(e)}")
 
 @app.route("/api/googlefit/disconnect", methods=["POST"])
 @login_required
 def gf_disconnect():
-    if GFIT_OK: gfit.disconnect()
-    return jsonify({"success":True})
+    clear_user_token(session.get("username",""))
+    return jsonify({"success": True})
 
 @app.route("/api/googlefit/sync", methods=["POST"])
 @login_required
 def gf_sync():
-    if not GFIT_OK: return jsonify({"success":False,"error":"Google Fit module unavailable"}),400
-    data = gfit.get_latest_vitals()
-    if "error" in data: return jsonify({"success":False,"error":data["error"]}),400
+    if not GFIT_OK:
+        return jsonify({"success": False, "error": "Google Fit libraries not installed"}), 400
+    username = session.get("username")
+    token = get_user_token(username)
+    if not token:
+        return jsonify({"success": False, "error": "Google Fit not connected. Please connect first."}), 400
+
+    data, updated_token = gfit.fetch_vitals(token)
+    if "error" in data:
+        return jsonify({"success": False, "error": data["error"]}), 400
+
+    # Save refreshed token back
+    if updated_token:
+        save_user_token(username, updated_token)
+
+    # Store vitals in DB
     conn = get_db(); ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     if USE_POSTGRES and PSYCOPG2_OK:
         cur = conn.cursor()
         cur.execute("INSERT INTO vitals (timestamp,oxygen,heart_rate,bp_sys,bp_dia,temperature,notes) VALUES (%s,%s,%s,%s,%s,%s,%s)",
-                    (ts,data.get("oxygen"),data.get("heart_rate"),data.get("bp_sys"),data.get("bp_dia"),data.get("temperature"),"📱 Google Fit")); cur.close()
+                    (ts,data.get("oxygen"),data.get("heart_rate"),data.get("bp_sys"),data.get("bp_dia"),data.get("temperature"),"📱 Google Fit"))
+        cur.close()
     else:
         conn.execute("INSERT INTO vitals (timestamp,oxygen,heart_rate,bp_sys,bp_dia,temperature,notes) VALUES (?,?,?,?,?,?,?)",
                      (ts,data.get("oxygen"),data.get("heart_rate"),data.get("bp_sys"),data.get("bp_dia"),data.get("temperature"),"📱 Google Fit"))
     conn.commit(); conn.close()
-    return jsonify({"success":True,"data":data})
+    return jsonify({"success": True, "data": data})
+
+
 
 # ── Init on startup ───────────────────────────────────────────────────────────
 with app.app_context():
