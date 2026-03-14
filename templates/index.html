@@ -259,6 +259,9 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
         <span class="icon">📅</span><span>Appointments</span>
         <span class="nav-badge hidden" id="apptBadge">0</span>
       </div>
+      <div class="nav-item" data-tab="profile" onclick="switchTab('profile')">
+        <span class="icon">👤</span><span>My Profile</span>
+      </div>
     </nav>
 
     <div class="sidebar-footer" id="apiStatus">
@@ -288,6 +291,7 @@ function switchTab(tab) {
   else if (tab === 'cycle') renderCycle();
   else if (tab === 'diet') renderDiet();
   else if (tab === 'appointments') renderAppointments();
+  else if (tab === 'profile') renderProfile();
 }
 
 // ─── CHAT ────────────────────────────────────────────────────────────
@@ -720,7 +724,7 @@ async function renderDiet() {
       <div><div class="page-title">Diet & Nutrition</div><div class="page-sub">Track meals, calories & water intake</div></div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <input type="date" id="dietDate" value="${today}" onchange="loadDiet()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:var(--surface);color:var(--text)">
-        ${strava.connected
+        <button class="btn" onclick="showDietAnalysis()" style="background:var(--color-background-info);color:var(--color-text-info);border-color:var(--color-border-info)">🤖 AI Dietician</button>
           ? `<button class="btn btn-primary" onclick="syncStrava()" id="stravaBtn">🏃 Sync Strava</button>
              <button class="btn btn-sm" onclick="disconnectStrava()" style="font-size:11px;color:var(--muted)">Disconnect</button>`
           : strava.configured
@@ -800,29 +804,45 @@ async function analyzeCals() {
   btn.textContent = '⏳ Analyzing…'; btn.disabled = true;
   resultEl.style.display = 'none';
   try {
-    const res = await fetch('/api/analyze-calories', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+    const res = await fetch('/api/analyze-nutrition', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({food_items: food})
     });
     const d = await res.json();
     if (d.calories) {
       document.getElementById('d-cal').value = d.calories;
+      // Store nutrients in notes as JSON
+      document.getElementById('d-notes').value = JSON.stringify({
+        protein_g: d.protein_g, carbs_g: d.carbs_g, fat_g: d.fat_g,
+        fiber_g: d.fiber_g, sodium_mg: d.sodium_mg
+      });
       resultEl.style.display = 'block';
-      resultEl.style.background = 'var(--color-background-success)';
-      resultEl.style.color = 'var(--color-text-success)';
-      resultEl.style.borderColor = 'var(--color-border-success)';
-      resultEl.innerHTML = `✅ <strong>${d.calories} kcal</strong> — ${d.breakdown || d.note || ''}`;
+      resultEl.style.cssText = 'display:block;background:var(--color-background-success);border:0.5px solid var(--color-border-success);border-radius:var(--border-radius-lg);padding:12px 14px;font-size:13px;margin-bottom:10px;line-height:1.7';
+      resultEl.innerHTML = `
+        <div style="font-weight:500;color:var(--color-text-success);margin-bottom:8px">✅ ${d.calories} kcal — ${d.breakdown||''}</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px">
+          ${[['Protein',d.protein_g,'g','#2563eb'],['Carbs',d.carbs_g,'g','#d97706'],['Fat',d.fat_g,'g','#dc2626'],['Fiber',d.fiber_g,'g','#16a34a']].map(([n,v,u,c])=>
+            `<div style="background:var(--color-background-primary);border-radius:var(--border-radius-md);padding:6px 8px;text-align:center"><div style="font-size:16px;font-weight:500;color:${c}">${v||0}${u}</div><div style="font-size:10px;color:var(--color-text-secondary)">${n}</div></div>`
+          ).join('')}
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px;font-size:12px">
+          <span style="color:var(--color-text-secondary)">Sodium: <strong>${d.sodium_mg||0}mg</strong></span>
+          <span style="color:var(--color-text-secondary)">Iron: <strong>${d.iron_mg||0}mg</strong></span>
+          <span style="color:var(--color-text-secondary)">Calcium: <strong>${d.calcium_mg||0}mg</strong></span>
+          <span style="color:var(--color-text-secondary)">Vit C: <strong>${d.vitamin_c_mg||0}mg</strong></span>
+          <span style="color:var(--color-text-secondary)">Potassium: <strong>${d.potassium_mg||0}mg</strong></span>
+          <span style="color:var(--color-text-secondary)">Sugar: <strong>${d.sugar_g||0}g</strong></span>
+        </div>
+        ${d.health_note?`<div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:4px">💡 ${d.health_note}</div>`:''}
+        ${d.suggestions?`<div style="font-size:12px;color:var(--color-text-info)">🥗 ${d.suggestions}</div>`:''}
+        ${d.missing_nutrients?`<div style="font-size:12px;color:var(--color-text-warning)">⚠️ Low in: ${d.missing_nutrients}</div>`:''}`;
     } else {
       resultEl.style.display = 'block';
-      resultEl.style.background = 'var(--color-background-warning)';
-      resultEl.style.color = 'var(--color-text-warning)';
-      resultEl.style.borderColor = 'var(--color-border-warning)';
-      resultEl.innerHTML = `⚠️ ${d.error || 'Could not analyze. Please enter calories manually.'}`;
+      resultEl.innerHTML = `⚠️ ${d.error||'Could not analyze. Please enter calories manually.'}`;
     }
   } catch(e) {
     resultEl.style.display = 'block';
-    resultEl.innerHTML = '⚠️ Analysis failed. Please enter calories manually.';
+    resultEl.innerHTML = '⚠️ Analysis failed. Enter calories manually.';
   }
   btn.textContent = '✨ Analyze'; btn.disabled = false;
 }
@@ -994,6 +1014,145 @@ async function syncGoogleFit() {
     if (statusEl) statusEl.innerHTML = '<div class="alert" style="background:var(--danger-bg);color:var(--danger)">❌ Error: ' + e.message + '</div>';
   }
   if (btn) { btn.textContent = '📱 Sync from Watch'; btn.disabled = false; }
+}
+
+// ─── AI Dietician Analysis ────────────────────────────────────────────────────
+async function showDietAnalysis() {
+  const date = document.getElementById('dietDate')?.value || today;
+  const statusEl = document.getElementById('stravaStatus');
+  if (statusEl) statusEl.innerHTML = '<div class="alert alert-info"><span class="spinner"></span>Your AI dietician is analysing today\'s diet…</div>';
+  try {
+    const res = await fetch('/api/diet-analysis', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({date})});
+    const d = await res.json();
+    if (statusEl) statusEl.innerHTML = `<div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:16px;font-size:14px;line-height:1.7;margin-bottom:12px">
+      <div style="font-weight:500;margin-bottom:10px;display:flex;align-items:center;gap:8px">🤖 <span>AI Dietician Analysis — ${date}</span></div>
+      <div style="color:var(--color-text-secondary)">${(d.analysis||d.error||'No data').replace(/\n/g,'<br>')}</div>
+    </div>`;
+  } catch(e) {
+    if (statusEl) statusEl.innerHTML = `<div class="alert alert-danger">❌ ${e.message}</div>`;
+  }
+}
+
+// ─── Profile ──────────────────────────────────────────────────────────────────
+async function renderProfile() {
+  const res = await fetch('/api/profile');
+  const p = await res.json();
+  document.getElementById('mainContent').innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">My Health Profile</div><div class="page-sub">Personal details for personalized AI nutrition & health analysis</div></div>
+    </div>
+    <div class="grid-2">
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">Personal Details</div>
+          <div class="form-row">
+            <div class="form-group"><label>Full Name</label><input type="text" id="p-name" value="${p.full_name||''}"></div>
+            <div class="form-group"><label>Age</label><input type="number" id="p-age" value="${p.age||''}" placeholder="e.g. 28"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Gender</label>
+              <select id="p-gender">
+                <option value="female" ${p.gender==='female'?'selected':''}>Female</option>
+                <option value="male" ${p.gender==='male'?'selected':''}>Male</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Dietary Preference</label>
+              <select id="p-diet">
+                <option value="vegetarian" ${p.dietary_pref==='vegetarian'?'selected':''}>Vegetarian</option>
+                <option value="non-vegetarian" ${p.dietary_pref==='non-vegetarian'?'selected':''}>Non-Vegetarian</option>
+                <option value="vegan" ${p.dietary_pref==='vegan'?'selected':''}>Vegan</option>
+                <option value="eggetarian" ${p.dietary_pref==='eggetarian'?'selected':''}>Eggetarian</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Weight (kg)</label><input type="number" id="p-weight" step="0.1" value="${p.weight_kg||''}" placeholder="e.g. 58"></div>
+            <div class="form-group"><label>Height (cm)</label><input type="number" id="p-height" value="${p.height_cm||''}" placeholder="e.g. 162"></div>
+          </div>
+          <div class="form-group"><label>Activity Level</label>
+            <select id="p-activity">
+              <option value="sedentary" ${p.activity_level==='sedentary'?'selected':''}>Sedentary (desk job, no exercise)</option>
+              <option value="light" ${p.activity_level==='light'?'selected':''}>Light (1-2 days/week exercise)</option>
+              <option value="moderate" ${p.activity_level==='moderate'?'selected':''}>Moderate (3-5 days/week)</option>
+              <option value="active" ${p.activity_level==='active'?'selected':''}>Active (6-7 days/week)</option>
+              <option value="very_active" ${p.activity_level==='very_active'?'selected':''}>Very Active (athlete)</option>
+            </select>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Health Information</div>
+          <div class="form-group"><label>Health Goals</label>
+            <input type="text" id="p-goals" value="${p.health_goals||''}" placeholder="e.g. Lose weight, manage diabetes, build strength">
+          </div>
+          <div class="form-group"><label>Medical Conditions</label>
+            <input type="text" id="p-conditions" value="${p.medical_conditions||''}" placeholder="e.g. Diabetes, PCOS, Thyroid, Hypertension">
+          </div>
+          <div class="form-group"><label>Food Allergies / Intolerances</label>
+            <input type="text" id="p-allergies" value="${p.allergies||''}" placeholder="e.g. Lactose intolerant, Gluten free, Nut allergy">
+          </div>
+          <button class="btn btn-primary" onclick="saveProfile()">Save Profile & Calculate Targets</button>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">Your Daily Targets</div>
+          <div id="targetsDisplay">
+            ${p.calorie_target ? `
+            <div class="grid-2" style="gap:10px">
+              ${[['🔥 Calories',p.calorie_target,'kcal/day','var(--color-text-info)'],
+                 ['💪 Protein',p.protein_target,'g/day','var(--color-text-success)'],
+                 ['🌾 Carbs',p.carb_target,'g/day','var(--color-text-warning)'],
+                 ['🥑 Fat',p.fat_target,'g/day','var(--color-text-danger)'],
+                 ['🥤 Water',p.water_target,'ml/day','#0d9488'],
+                 ['🧬 Fiber','25-30','g/day','#639922']
+              ].map(([n,v,u,c])=>`<div style="background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px;text-align:center">
+                <div style="font-size:20px;font-weight:500;color:${c}">${v}</div>
+                <div style="font-size:11px;color:var(--color-text-secondary)">${u}</div>
+                <div style="font-size:12px;font-weight:500;margin-top:2px">${n}</div>
+              </div>`).join('')}
+            </div>
+            <div style="margin-top:14px;padding:12px;background:var(--color-background-info);border-radius:var(--border-radius-md);font-size:13px;color:var(--color-text-info)">
+              💡 Targets calculated using Mifflin-St Jeor formula based on your age, weight, height and activity level
+            </div>` : `<p style="color:var(--color-text-secondary);font-size:14px">Fill in your profile details and save to see your personalized daily nutrition targets calculated by AI.</p>`}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">BMI & Health Indicators</div>
+          ${p.weight_kg && p.height_cm ? (() => {
+            const bmi = (p.weight_kg / ((p.height_cm/100)**2)).toFixed(1);
+            const bmiCat = bmi < 18.5 ? ['Underweight','var(--color-text-info)'] : bmi < 25 ? ['Normal','var(--color-text-success)'] : bmi < 30 ? ['Overweight','var(--color-text-warning)'] : ['Obese','var(--color-text-danger)'];
+            const ideal_low = (18.5 * (p.height_cm/100)**2).toFixed(1);
+            const ideal_high = (24.9 * (p.height_cm/100)**2).toFixed(1);
+            return `<div style="text-align:center;padding:16px 0">
+              <div style="font-size:48px;font-weight:500;color:${bmiCat[1]}">${bmi}</div>
+              <div style="font-size:14px;color:${bmiCat[1]};font-weight:500">${bmiCat[0]}</div>
+              <div style="font-size:12px;color:var(--color-text-secondary);margin-top:4px">Ideal weight range: ${ideal_low}–${ideal_high} kg</div>
+            </div>`;
+          })() : '<p style="color:var(--color-text-secondary);font-size:13px">Enter weight and height to see your BMI</p>'}
+        </div>
+      </div>
+    </div>`;
+}
+
+async function saveProfile() {
+  const data = {
+    full_name: document.getElementById('p-name').value,
+    age: parseInt(document.getElementById('p-age').value)||0,
+    gender: document.getElementById('p-gender').value,
+    weight_kg: parseFloat(document.getElementById('p-weight').value)||0,
+    height_cm: parseFloat(document.getElementById('p-height').value)||0,
+    activity_level: document.getElementById('p-activity').value,
+    health_goals: document.getElementById('p-goals').value,
+    medical_conditions: document.getElementById('p-conditions').value,
+    allergies: document.getElementById('p-allergies').value,
+    dietary_pref: document.getElementById('p-diet').value,
+  };
+  const res = await fetch('/api/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  const result = await res.json();
+  if (result.status === 'ok') {
+    alert(`✅ Profile saved!\n\nYour daily targets:\n🔥 ${result.calorie_target} kcal\n💪 ${result.protein_target}g protein\n🌾 ${result.carb_target}g carbs\n🥑 ${result.fat_target}g fat\n🥤 ${result.water_target}ml water`);
+    renderProfile();
+  }
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────
