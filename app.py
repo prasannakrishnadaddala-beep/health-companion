@@ -84,6 +84,39 @@ def init_db():
         ("users", "google_fit_connected", "INTEGER DEFAULT 0"),
         ("users", "strava_token", "TEXT"),
     ]
+    # Also create profile table if not exists
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor()
+        try:
+            cur.execute("""CREATE TABLE IF NOT EXISTS user_profile (
+                id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL,
+                full_name TEXT, age INTEGER, gender TEXT, weight_kg REAL,
+                height_cm REAL, activity_level TEXT, health_goals TEXT,
+                medical_conditions TEXT, allergies TEXT, dietary_pref TEXT,
+                calorie_target INTEGER DEFAULT 2000,
+                protein_target INTEGER DEFAULT 50, carb_target INTEGER DEFAULT 250,
+                fat_target INTEGER DEFAULT 65, water_target INTEGER DEFAULT 2000,
+                updated_at TEXT
+            )""")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+        cur.close()
+    else:
+        try:
+            conn.execute("""CREATE TABLE IF NOT EXISTS user_profile (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL,
+                full_name TEXT, age INTEGER, gender TEXT, weight_kg REAL,
+                height_cm REAL, activity_level TEXT, health_goals TEXT,
+                medical_conditions TEXT, allergies TEXT, dietary_pref TEXT,
+                calorie_target INTEGER DEFAULT 2000,
+                protein_target INTEGER DEFAULT 50, carb_target INTEGER DEFAULT 250,
+                fat_target INTEGER DEFAULT 65, water_target INTEGER DEFAULT 2000,
+                updated_at TEXT
+            )""")
+            conn.commit()
+        except Exception:
+            pass
     if USE_POSTGRES and PSYCOPG2_OK:
         cur = conn.cursor()
         for table, col, coltype in migrate_cols:
@@ -474,7 +507,206 @@ Rules:
         return jsonify({"error": "Could not parse AI response"})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
-@app.route("/api/appointments", methods=["GET"])
+
+# ── User Profile ──────────────────────────────────────────────────────────────
+@app.route("/api/profile", methods=["GET"])
+@login_required
+def get_profile():
+    username = session.get("username")
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT * FROM user_profile WHERE username=%s", (username,))
+        row = cur.fetchone(); cur.close()
+    else:
+        r = conn.execute("SELECT * FROM user_profile WHERE username=?", (username,)).fetchone()
+        row = dict(r) if r else None
+    conn.close()
+    return jsonify(dict(row) if row else {})
+
+@app.route("/api/profile", methods=["POST"])
+@login_required
+def save_profile():
+    d = request.json
+    username = session.get("username")
+    ts = datetime.datetime.now().isoformat()
+    conn = get_db()
+    # Calculate targets based on profile using Mifflin-St Jeor
+    age = d.get("age", 30)
+    weight = d.get("weight_kg", 60)
+    height = d.get("height_cm", 165)
+    gender = d.get("gender", "female")
+    activity = d.get("activity_level", "moderate")
+    activity_mult = {"sedentary":1.2,"light":1.375,"moderate":1.55,"active":1.725,"very_active":1.9}.get(activity,1.55)
+    if gender == "female":
+        bmr = 10*weight + 6.25*height - 5*age - 161
+    else:
+        bmr = 10*weight + 6.25*height - 5*age + 5
+    tdee = round(bmr * activity_mult)
+    goal = d.get("health_goals","")
+    if "lose" in goal.lower() or "weight loss" in goal.lower():
+        cal_target = tdee - 400
+    elif "gain" in goal.lower():
+        cal_target = tdee + 300
+    else:
+        cal_target = tdee
+    protein_target = round(weight * 1.2)
+    fat_target = round(cal_target * 0.25 / 9)
+    carb_target = round((cal_target - protein_target*4 - fat_target*9) / 4)
+    water_target = round(weight * 35)
+
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor()
+        cur.execute("""INSERT INTO user_profile
+            (username,full_name,age,gender,weight_kg,height_cm,activity_level,health_goals,
+             medical_conditions,allergies,dietary_pref,calorie_target,protein_target,
+             carb_target,fat_target,water_target,updated_at)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (username) DO UPDATE SET
+            full_name=EXCLUDED.full_name, age=EXCLUDED.age, gender=EXCLUDED.gender,
+            weight_kg=EXCLUDED.weight_kg, height_cm=EXCLUDED.height_cm,
+            activity_level=EXCLUDED.activity_level, health_goals=EXCLUDED.health_goals,
+            medical_conditions=EXCLUDED.medical_conditions, allergies=EXCLUDED.allergies,
+            dietary_pref=EXCLUDED.dietary_pref, calorie_target=EXCLUDED.calorie_target,
+            protein_target=EXCLUDED.protein_target, carb_target=EXCLUDED.carb_target,
+            fat_target=EXCLUDED.fat_target, water_target=EXCLUDED.water_target,
+            updated_at=EXCLUDED.updated_at""",
+            (username, d.get("full_name",""), age, gender, weight, height,
+             activity, d.get("health_goals",""), d.get("medical_conditions",""),
+             d.get("allergies",""), d.get("dietary_pref",""),
+             cal_target, protein_target, carb_target, fat_target, water_target, ts))
+        cur.close()
+    else:
+        conn.execute("DELETE FROM user_profile WHERE username=?", (username,))
+        conn.execute("""INSERT INTO user_profile
+            (username,full_name,age,gender,weight_kg,height_cm,activity_level,health_goals,
+             medical_conditions,allergies,dietary_pref,calorie_target,protein_target,
+             carb_target,fat_target,water_target,updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (username, d.get("full_name",""), age, gender, weight, height,
+             activity, d.get("health_goals",""), d.get("medical_conditions",""),
+             d.get("allergies",""), d.get("dietary_pref",""),
+             cal_target, protein_target, carb_target, fat_target, water_target, ts))
+    conn.commit(); conn.close()
+    return jsonify({"status":"ok","calorie_target":cal_target,"protein_target":protein_target,
+                    "carb_target":carb_target,"fat_target":fat_target,"water_target":water_target})
+
+@app.route("/api/analyze-nutrition", methods=["POST"])
+@login_required
+def analyze_nutrition():
+    d = request.json
+    food_items = d.get("food_items","").strip()
+    if not food_items:
+        return jsonify({"error":"No food items"}), 400
+    client = get_ai_client()
+    if not client:
+        return jsonify({"error":"AI not configured"}), 400
+    # Get user profile for personalized analysis
+    username = session.get("username")
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT * FROM user_profile WHERE username=%s",(username,))
+        profile = cur.fetchone(); cur.close()
+    else:
+        r = conn.execute("SELECT * FROM user_profile WHERE username=?",(username,)).fetchone()
+        profile = dict(r) if r else None
+    conn.close()
+    profile_ctx = ""
+    if profile:
+        profile_ctx = f"Person: {profile.get('age','?')} yr old {profile.get('gender','female')}, {profile.get('weight_kg','?')}kg, {profile.get('height_cm','?')}cm, {profile.get('activity_level','moderate')} activity. Goals: {profile.get('health_goals','')}. Conditions: {profile.get('medical_conditions','')}. Diet: {profile.get('dietary_pref','')}."
+    try:
+        prompt = f"""You are an expert nutritionist specializing in Indian cuisine. Analyze this meal with detailed macro and micronutrients.
+
+Food: {food_items}
+{profile_ctx}
+
+Respond ONLY with a valid JSON object (no markdown, no extra text):
+{{
+  "calories": 590,
+  "protein_g": 18,
+  "carbs_g": 95,
+  "fat_g": 12,
+  "fiber_g": 8,
+  "sugar_g": 4,
+  "sodium_mg": 420,
+  "calcium_mg": 85,
+  "iron_mg": 3.2,
+  "vitamin_c_mg": 15,
+  "potassium_mg": 380,
+  "breakdown": "Rice 300kcal + Dal 190kcal + Bitter gourd 100kcal",
+  "health_note": "Good fiber content. Dal provides plant protein. Bitter gourd helps blood sugar.",
+  "missing_nutrients": "Low in Vitamin B12, Omega-3",
+  "suggestions": "Add a glass of buttermilk for calcium and probiotics"
+}}
+
+Use typical Indian home-cooked portions. Be accurate for Indian foods."""
+        msg = client.messages.create(model="claude-opus-4-5", max_tokens=500,
+            messages=[{"role":"user","content":prompt}])
+        import re
+        text = msg.content[0].text.strip()
+        match = re.search(r'\{.*\}', text, re.DOTALL)
+        if match:
+            return jsonify(json.loads(match.group()))
+        return jsonify({"error":"Parse failed"})
+    except Exception as e:
+        return jsonify({"error":str(e)}), 400
+
+@app.route("/api/diet-analysis", methods=["POST"])
+@login_required
+def diet_analysis():
+    """Full day diet analysis by AI dietician."""
+    d = request.json
+    date = d.get("date", datetime.date.today().isoformat())
+    client = get_ai_client()
+    if not client: return jsonify({"error":"AI not configured"}),400
+    username = session.get("username")
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT * FROM diet_log WHERE date=%s ORDER BY id",(date,))
+        entries = [dict(r) for r in cur.fetchall()]
+        cur.execute("SELECT * FROM user_profile WHERE username=%s",(username,))
+        profile = cur.fetchone(); cur.close()
+    else:
+        entries = [dict(r) for r in conn.execute("SELECT * FROM diet_log WHERE date=? ORDER BY id",(date,)).fetchall()]
+        r = conn.execute("SELECT * FROM user_profile WHERE username=?",(username,)).fetchone()
+        profile = dict(r) if r else None
+    conn.close()
+    if not entries:
+        return jsonify({"analysis":"No food logged for this day yet. Please log your meals first."})
+    food_summary = "\n".join([f"- {e['meal_type']}: {e['food_items']} ({e['calories']} kcal)" for e in entries])
+    total_cal = sum(e['calories'] or 0 for e in entries)
+    total_water = sum(e['water_ml'] or 0 for e in entries)
+    nutrients_json = json.dumps([json.loads(e['notes']) if e.get('notes','').startswith('{') else {} for e in entries])
+    profile_ctx = ""
+    if profile:
+        profile_ctx = f"\nPatient profile: {profile.get('full_name','')}, {profile.get('age','?')} years, {profile.get('gender','female')}, {profile.get('weight_kg','?')}kg, {profile.get('height_cm','?')}cm height, {profile.get('activity_level','moderate')} activity level.\nHealth goals: {profile.get('health_goals','')}\nMedical conditions: {profile.get('medical_conditions','')}\nDietary preferences: {profile.get('dietary_pref','')}\nDaily targets: {profile.get('calorie_target',2000)} kcal, {profile.get('protein_target',50)}g protein, {profile.get('carb_target',250)}g carbs, {profile.get('fat_target',65)}g fat, {profile.get('water_target',2000)}ml water"
+    prompt = f"""You are a personalized AI dietician. Analyze this patient's diet for {date}.
+{profile_ctx}
+
+Food consumed:
+{food_summary}
+Total: {total_cal} kcal, {total_water}ml water
+
+Give a detailed, personalized dietary analysis. Be specific, warm, and actionable. Include:
+1. Overall assessment of today's diet
+2. Macro nutrient balance (protein/carbs/fat)
+3. Key micronutrients that look good or are likely missing
+4. Hydration assessment  
+5. Specific recommendations for tomorrow
+6. Any concerns based on their medical conditions
+7. One Indian recipe suggestion that would fill nutritional gaps
+
+Be conversational, specific to Indian diet, and address them personally. 3-4 paragraphs."""
+    try:
+        msg = client.messages.create(model="claude-opus-4-5", max_tokens=800,
+            messages=[{"role":"user","content":prompt}])
+        return jsonify({"analysis": msg.content[0].text})
+    except Exception as e:
+        return jsonify({"error":str(e)}), 400
+
+# ── Appointments ──────────────────────────────────────────────────────────────
 @login_required
 def get_appointments():
     conn = get_db()
