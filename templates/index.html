@@ -725,6 +725,7 @@ async function renderDiet() {
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <input type="date" id="dietDate" value="${today}" onchange="loadDiet()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:var(--surface);color:var(--text)">
         <button class="btn" onclick="showDietAnalysis()" style="background:var(--color-background-info);color:var(--color-text-info);border-color:var(--color-border-info)">🤖 AI Dietician</button>
+        ${strava.connected
           ? `<button class="btn btn-primary" onclick="syncStrava()" id="stravaBtn">🏃 Sync Strava</button>
              <button class="btn btn-sm" onclick="disconnectStrava()" style="font-size:11px;color:var(--muted)">Disconnect</button>`
           : strava.configured
@@ -1140,7 +1141,6 @@ function getBmiHtml(p) {
     + '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--color-text-secondary)">'
     + '<span>Underweight &lt;18.5</span><span>Normal 18.5–25</span><span>Obese &gt;30</span></div>'
     + '</div>';
-}
 }
 
 async function saveProfile() {
