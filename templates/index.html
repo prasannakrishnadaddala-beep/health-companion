@@ -1018,6 +1018,20 @@ async function syncGoogleFit() {
 }
 
 // ─── AI Dietician Analysis ────────────────────────────────────────────────────
+function renderMarkdown(text) {
+  return text
+    .replace(/^### (.+)$/gm, '<div style="font-size:14px;font-weight:500;color:var(--color-text-primary);margin:12px 0 4px">$1</div>')
+    .replace(/^## (.+)$/gm, '<div style="font-size:15px;font-weight:500;color:var(--color-text-primary);margin:14px 0 6px">$1</div>')
+    .replace(/^# (.+)$/gm, '<div style="font-size:16px;font-weight:500;margin:14px 0 6px">$1</div>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^- (.+)$/gm, '<div style="padding:2px 0 2px 14px;border-left:2px solid var(--color-border-secondary);margin:3px 0;font-size:13px">$1</div>')
+    .replace(/^\| (.+) \|$/gm, '<div style="font-size:12px;color:var(--color-text-secondary);padding:2px 0">$1</div>')
+    .replace(/^---+$/gm, '<hr style="border:none;border-top:0.5px solid var(--color-border-tertiary);margin:12px 0">')
+    .replace(/\n\n/g, '<br>')
+    .replace(/\n/g, '<br>');
+}
+
 async function showDietAnalysis() {
   const date = document.getElementById('dietDate')?.value || today;
   const statusEl = document.getElementById('stravaStatus');
@@ -1025,12 +1039,16 @@ async function showDietAnalysis() {
   try {
     const res = await fetch('/api/diet-analysis', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({date})});
     const d = await res.json();
-    if (statusEl) statusEl.innerHTML = `<div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:16px;font-size:14px;line-height:1.7;margin-bottom:12px">
-      <div style="font-weight:500;margin-bottom:10px;display:flex;align-items:center;gap:8px">🤖 <span>AI Dietician Analysis — ${date}</span></div>
-      <div style="color:var(--color-text-secondary)">${(d.analysis||d.error||'No data').replace(/\n/g,'<br>')}</div>
-    </div>`;
+    if (statusEl) statusEl.innerHTML = `
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:18px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-size:15px;font-weight:500;display:flex;align-items:center;gap:8px">🤖 <span>AI Dietician Analysis — ${date}</span></div>
+          <button onclick="document.getElementById('stravaStatus').innerHTML=''" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--color-text-secondary)">✕</button>
+        </div>
+        <div style="font-size:14px;line-height:1.8;color:var(--color-text-secondary)">${renderMarkdown(d.analysis||d.error||'No data')}</div>
+      </div>`;
   } catch(e) {
-    if (statusEl) statusEl.innerHTML = `<div class="alert alert-danger">❌ ${e.message}</div>`;
+    if (statusEl) statusEl.innerHTML = `<div class="alert" style="background:var(--color-background-danger);color:var(--color-text-danger)">❌ ${e.message}</div>`;
   }
 }
 
