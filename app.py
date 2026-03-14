@@ -226,6 +226,145 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    """Admin can create new family member accounts."""
+    # Only allow if already logged in (admin creates accounts)
+    if not session.get("logged_in"):
+        return redirect(url_for("login"))
+    error = None; success = None
+    if request.method == "POST":
+        u = request.form.get("username","").strip()
+        p = request.form.get("password","")
+        role = request.form.get("role","member")
+        full_name = request.form.get("full_name","").strip()
+        if not u or not p:
+            error = "Username and password are required."
+        elif len(p) < 6:
+            error = "Password must be at least 6 characters."
+        else:
+            try:
+                conn = get_db()
+                if USE_POSTGRES and PSYCOPG2_OK:
+                    cur = conn.cursor()
+                    cur.execute("INSERT INTO users (username,password_hash,created_at) VALUES (%s,%s,%s)",
+                                (u, hash_pw(p), datetime.datetime.now().isoformat()))
+                    conn.commit(); cur.close()
+                else:
+                    conn.execute("INSERT INTO users (username,password_hash,created_at) VALUES (?,?,?)",
+                                 (u, hash_pw(p), datetime.datetime.now().isoformat()))
+                    conn.commit()
+                conn.close()
+                # Create profile with full name
+                if full_name:
+                    conn = get_db()
+                    if USE_POSTGRES and PSYCOPG2_OK:
+                        cur = conn.cursor()
+                        cur.execute("INSERT INTO user_profile (username,full_name,updated_at) VALUES (%s,%s,%s) ON CONFLICT (username) DO UPDATE SET full_name=EXCLUDED.full_name",
+                                    (u, full_name, datetime.datetime.now().isoformat()))
+                        conn.commit(); cur.close()
+                    else:
+                        conn.execute("INSERT OR REPLACE INTO user_profile (username,full_name,updated_at) VALUES (?,?,?)",
+                                     (u, full_name, datetime.datetime.now().isoformat()))
+                        conn.commit()
+                    conn.close()
+                success = f"Account created for {full_name or u}!"
+            except Exception as e:
+                error = f"Username already exists or error: {str(e)}"
+    return render_template("register.html", error=error, success=success)
+
+@app.route("/api/users", methods=["GET"])
+@login_required
+def get_users():
+    """List all family member accounts."""
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""SELECT u.username, u.created_at,
+                       p.full_name, p.age, p.gender, p.weight_kg, p.height_cm,
+                       p.health_goals, p.medical_conditions
+                       FROM users u LEFT JOIN user_profile p ON u.username=p.username
+                       ORDER BY u.created_at""")
+        users = [dict(r) for r in cur.fetchall()]; cur.close()
+    else:
+        users = [dict(r) for r in conn.execute("""
+            SELECT u.username, u.created_at,
+            p.full_name, p.age, p.gender, p.weight_kg, p.height_cm,
+            p.health_goals, p.medical_conditions
+            FROM users u LEFT JOIN user_profile p ON u.username=p.username
+            ORDER BY u.created_at""").fetchall()]
+    conn.close()
+    return jsonify(users)
+
+@app.route("/api/users/<username>/delete", methods=["POST"])
+@login_required
+def delete_user(username):
+    """Delete a family member account (can't delete yourself)."""
+    if username == session.get("username"):
+        return jsonify({"error": "Cannot delete your own account"}), 400
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM users WHERE username=%s",(username,))
+        cur.execute("DELETE FROM user_profile WHERE username=%s",(username,))
+        conn.commit(); cur.close()
+    else:
+        conn.execute("DELETE FROM users WHERE username=?",(username,))
+        conn.execute("DELETE FROM user_profile WHERE username=?",(username,))
+        conn.commit()
+    conn.close()
+    return jsonify({"status":"ok"})
+
+@app.route("/api/users/<username>/reset-password", methods=["POST"])
+@login_required
+def reset_password(username):
+    """Reset a family member's password."""
+    new_pw = request.json.get("password","")
+    if len(new_pw) < 6:
+        return jsonify({"error":"Password too short"}), 400
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor()
+        cur.execute("UPDATE users SET password_hash=%s WHERE username=%s",(hash_pw(new_pw),username))
+        conn.commit(); cur.close()
+    else:
+        conn.execute("UPDATE users SET password_hash=? WHERE username=?",(hash_pw(new_pw),username))
+        conn.commit()
+    conn.close()
+    return jsonify({"status":"ok"})
+
+@app.route("/api/change-password", methods=["POST"])
+@login_required
+def change_password():
+    """User changes their own password."""
+    d = request.json
+    old_pw = d.get("old_password","")
+    new_pw = d.get("new_password","")
+    if len(new_pw) < 6:
+        return jsonify({"error":"New password must be at least 6 characters"}), 400
+    username = session.get("username")
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT password_hash FROM users WHERE username=%s",(username,))
+        row = cur.fetchone(); cur.close()
+    else:
+        row = conn.execute("SELECT password_hash FROM users WHERE username=?",(username,)).fetchone()
+        row = dict(row) if row else None
+    conn.close()
+    if not row or row["password_hash"] != hash_pw(old_pw):
+        return jsonify({"error":"Current password is incorrect"}), 400
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor()
+        cur.execute("UPDATE users SET password_hash=%s WHERE username=%s",(hash_pw(new_pw),username))
+        conn.commit(); cur.close()
+    else:
+        conn.execute("UPDATE users SET password_hash=? WHERE username=?",(hash_pw(new_pw),username))
+        conn.commit()
+    conn.close()
+    return jsonify({"status":"ok"})
+
 @app.route("/")
 @login_required
 def index():
