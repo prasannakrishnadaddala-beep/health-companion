@@ -59,8 +59,12 @@ def init_db():
             "CREATE TABLE IF NOT EXISTS chat_history (id SERIAL PRIMARY KEY, role TEXT, content TEXT, timestamp TEXT)",
         ]
         for s in stmts:
-            cur.execute(s)
-        conn.commit(); cur.close()
+            try:
+                cur.execute(s)
+                conn.commit()
+            except Exception:
+                conn.rollback()
+        cur.close()
     else:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, created_at TEXT, google_fit_token TEXT, google_fit_connected INTEGER DEFAULT 0, strava_token TEXT);
@@ -432,7 +436,44 @@ def delete_diet(eid):
         conn.execute("DELETE FROM diet_log WHERE id=?",(eid,))
     conn.commit(); conn.close(); return jsonify({"status":"ok"})
 
-# ── Appointments ──────────────────────────────────────────────────────────────
+@app.route("/api/analyze-calories", methods=["POST"])
+@login_required
+def analyze_calories():
+    d = request.json
+    food_items = d.get("food_items","").strip()
+    if not food_items:
+        return jsonify({"error": "No food items provided"}), 400
+    client = get_ai_client()
+    if not client:
+        return jsonify({"error": "AI not configured"}), 400
+    try:
+        prompt = f"""You are a nutrition expert. Analyze these Indian food items and estimate total calories.
+
+Food: {food_items}
+
+Respond ONLY with a JSON object like this (no markdown, no extra text):
+{{"calories": 450, "breakdown": "Rice 200kcal + Dal 150kcal + Bitter gourd 100kcal", "note": "Approximate values for typical Indian serving sizes"}}
+
+Rules:
+- Use typical Indian home-cooked portion sizes
+- Be accurate for Indian foods like idly, dosa, rice, dal, sabzi, roti etc.
+- Return only the JSON, nothing else"""
+
+        msg = client.messages.create(
+            model="claude-opus-4-5",
+            max_tokens=200,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        import re
+        text = msg.content[0].text.strip()
+        # Extract JSON from response
+        match = re.search(r'\{.*\}', text, re.DOTALL)
+        if match:
+            result = json.loads(match.group())
+            return jsonify(result)
+        return jsonify({"error": "Could not parse AI response"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 @app.route("/api/appointments", methods=["GET"])
 @login_required
 def get_appointments():
