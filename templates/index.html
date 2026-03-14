@@ -738,9 +738,16 @@ async function renderDiet() {
           <div class="form-group"><label>Meal Type</label>
             <select id="d-meal"><option value="Breakfast">Breakfast</option><option value="Lunch">Lunch</option><option value="Snack">Snack</option><option value="Dinner">Dinner</option></select>
           </div>
-          <div class="form-group"><label>Food Items</label><input type="text" id="d-food" placeholder="e.g. Rice, dal, vegetables"></div>
+          <div class="form-group">
+            <label>Food Items</label>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="d-food" placeholder="e.g. 1 cup rice + dal + bitter gourd" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();analyzeCals();}">
+              <button class="btn" onclick="analyzeCals()" id="analyzeBtn" style="white-space:nowrap;background:var(--color-background-info);color:var(--color-text-info);border-color:var(--color-border-info)">✨ Analyze</button>
+            </div>
+          </div>
+          <div id="aiCalResult" style="display:none;background:var(--color-background-success);border:0.5px solid var(--color-border-success);border-radius:var(--border-radius-md);padding:10px 12px;font-size:13px;margin-bottom:10px;color:var(--color-text-success)"></div>
           <div class="form-row">
-            <div class="form-group"><label>Calories (kcal)</label><input type="number" id="d-cal" placeholder="0"></div>
+            <div class="form-group"><label>Calories (kcal) — auto-filled by AI</label><input type="number" id="d-cal" placeholder="0"></div>
             <div class="form-group"><label>Water (ml)</label><input type="number" id="d-water" placeholder="0"></div>
           </div>
           <div class="form-group"><label>Notes</label><input type="text" id="d-notes" placeholder="Optional"></div>
@@ -783,6 +790,41 @@ async function loadDiet() {
       ${items.length ? items.map(e => `<div class="food-item"><span>${e.food_items || e.notes || '—'}</span><div style="display:flex;align-items:center;gap:8px"><span style="color:var(--muted);font-size:12px">${e.calories||0} kcal</span><button class="btn-icon" onclick="deleteDiet(${e.id})" style="font-size:13px">✕</button></div></div>`).join('') : `<p style="color:var(--muted);font-size:13px;padding:4px 0">None logged</p>`}
     </div>`;
   }).join('');
+}
+
+async function analyzeCals() {
+  const food = document.getElementById('d-food').value.trim();
+  if (!food) { alert('Please enter food items first'); return; }
+  const btn = document.getElementById('analyzeBtn');
+  const resultEl = document.getElementById('aiCalResult');
+  btn.textContent = '⏳ Analyzing…'; btn.disabled = true;
+  resultEl.style.display = 'none';
+  try {
+    const res = await fetch('/api/analyze-calories', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({food_items: food})
+    });
+    const d = await res.json();
+    if (d.calories) {
+      document.getElementById('d-cal').value = d.calories;
+      resultEl.style.display = 'block';
+      resultEl.style.background = 'var(--color-background-success)';
+      resultEl.style.color = 'var(--color-text-success)';
+      resultEl.style.borderColor = 'var(--color-border-success)';
+      resultEl.innerHTML = `✅ <strong>${d.calories} kcal</strong> — ${d.breakdown || d.note || ''}`;
+    } else {
+      resultEl.style.display = 'block';
+      resultEl.style.background = 'var(--color-background-warning)';
+      resultEl.style.color = 'var(--color-text-warning)';
+      resultEl.style.borderColor = 'var(--color-border-warning)';
+      resultEl.innerHTML = `⚠️ ${d.error || 'Could not analyze. Please enter calories manually.'}`;
+    }
+  } catch(e) {
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = '⚠️ Analysis failed. Please enter calories manually.';
+  }
+  btn.textContent = '✨ Analyze'; btn.disabled = false;
 }
 
 async function addDiet() {
