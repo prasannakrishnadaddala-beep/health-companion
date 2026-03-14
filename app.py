@@ -83,6 +83,13 @@ def init_db():
         ("users", "google_fit_token", "TEXT"),
         ("users", "google_fit_connected", "INTEGER DEFAULT 0"),
         ("users", "strava_token", "TEXT"),
+        ("vitals", "username", "TEXT DEFAULT 'admin'"),
+        ("medications", "username", "TEXT DEFAULT 'admin'"),
+        ("health_records", "username", "TEXT DEFAULT 'admin'"),
+        ("cycle_log", "username", "TEXT DEFAULT 'admin'"),
+        ("diet_log", "username", "TEXT DEFAULT 'admin'"),
+        ("appointments", "username", "TEXT DEFAULT 'admin'"),
+        ("chat_history", "username", "TEXT DEFAULT 'admin'"),
     ]
     # Also create profile table if not exists
     if USE_POSTGRES and PSYCOPG2_OK:
@@ -391,10 +398,10 @@ def get_vitals():
     conn = get_db()
     if USE_POSTGRES and PSYCOPG2_OK:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute("SELECT * FROM vitals ORDER BY timestamp DESC LIMIT 50")
+        u=session.get("username","admin"); cur.execute("SELECT * FROM vitals WHERE username=%s ORDER BY timestamp DESC LIMIT 50",(u,))
         data = [dict(r) for r in cur.fetchall()]; cur.close()
     else:
-        data = [dict(r) for r in conn.execute("SELECT * FROM vitals ORDER BY timestamp DESC LIMIT 50").fetchall()]
+        data = [dict(r) for r in conn.execute("SELECT * FROM vitals WHERE username=? ORDER BY timestamp DESC LIMIT 50",(session.get("username","admin"),)).fetchall()]
     conn.close(); return jsonify(data)
 
 @app.route("/api/vitals", methods=["POST"])
@@ -404,12 +411,10 @@ def add_vital():
     conn = get_db()
     if USE_POSTGRES and PSYCOPG2_OK:
         cur = conn.cursor()
-        cur.execute("INSERT INTO vitals (timestamp,oxygen,heart_rate,bp_sys,bp_dia,temperature,notes) VALUES (%s,%s,%s,%s,%s,%s,%s)",
-                    (ts,d.get("oxygen"),d.get("heart_rate"),d.get("bp_sys"),d.get("bp_dia"),d.get("temperature"),d.get("notes","")))
+        u=session.get("username","admin"); cur.execute("INSERT INTO vitals (timestamp,oxygen,heart_rate,bp_sys,bp_dia,temperature,notes,username) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",(ts,d.get("oxygen"),d.get("heart_rate"),d.get("bp_sys"),d.get("bp_dia"),d.get("temperature"),d.get("notes",""),u))
         cur.close()
     else:
-        conn.execute("INSERT INTO vitals (timestamp,oxygen,heart_rate,bp_sys,bp_dia,temperature,notes) VALUES (?,?,?,?,?,?,?)",
-                     (ts,d.get("oxygen"),d.get("heart_rate"),d.get("bp_sys"),d.get("bp_dia"),d.get("temperature"),d.get("notes","")))
+        u=session.get("username","admin"); conn.execute("INSERT INTO vitals (timestamp,oxygen,heart_rate,bp_sys,bp_dia,temperature,notes,username) VALUES (?,?,?,?,?,?,?,?)",(ts,d.get("oxygen"),d.get("heart_rate"),d.get("bp_sys"),d.get("bp_dia"),d.get("temperature"),d.get("notes",""),u))
     conn.commit(); conn.close(); return jsonify({"status":"ok"})
 
 # ── Medications ───────────────────────────────────────────────────────────────
@@ -420,7 +425,7 @@ def get_medications():
     conn = get_db()
     if USE_POSTGRES and PSYCOPG2_OK:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute("SELECT * FROM medications WHERE active=1")
+        u=session.get("username","admin"); cur.execute("SELECT * FROM medications WHERE active=1 AND (username=%s OR username IS NULL)",(u,))
         meds = [dict(r) for r in cur.fetchall()]
         result = []
         for m in meds:
@@ -432,7 +437,7 @@ def get_medications():
             result.append({**m, "times": times, "taken": [tm.get(i, False) for i in range(len(times))]})
         cur.close()
     else:
-        meds = [dict(r) for r in conn.execute("SELECT * FROM medications WHERE active=1").fetchall()]
+        meds = [dict(r) for r in conn.execute("SELECT * FROM medications WHERE active=1 AND (username=? OR username IS NULL)",(session.get("username","admin"),)).fetchall()]
         result = []
         for m in meds:
             times = json.loads(m["times"])
@@ -447,12 +452,10 @@ def add_medication():
     d = request.json; conn = get_db()
     if USE_POSTGRES and PSYCOPG2_OK:
         cur = conn.cursor()
-        cur.execute("INSERT INTO medications (name,dose,frequency,times,color) VALUES (%s,%s,%s,%s,%s)",
-                    (d["name"],d.get("dose",""),d.get("frequency",""),json.dumps(d.get("times",["09:00"])),d.get("color","#378ADD")))
+        u=session.get("username","admin"); cur.execute("INSERT INTO medications (name,dose,frequency,times,color,username) VALUES (%s,%s,%s,%s,%s,%s)",(d["name"],d.get("dose",""),d.get("frequency",""),json.dumps(d.get("times",["09:00"])),d.get("color","#378ADD"),u))
         cur.close()
     else:
-        conn.execute("INSERT INTO medications (name,dose,frequency,times,color) VALUES (?,?,?,?,?)",
-                     (d["name"],d.get("dose",""),d.get("frequency",""),json.dumps(d.get("times",["09:00"])),d.get("color","#378ADD")))
+        u=session.get("username","admin"); conn.execute("INSERT INTO medications (name,dose,frequency,times,color,username) VALUES (?,?,?,?,?,?)",(d["name"],d.get("dose",""),d.get("frequency",""),json.dumps(d.get("times",["09:00"])),d.get("color","#378ADD"),u))
     conn.commit(); conn.close(); return jsonify({"status":"ok"})
 
 @app.route("/api/medications/<int:mid>", methods=["DELETE"])
@@ -495,10 +498,10 @@ def get_records():
     conn = get_db()
     if USE_POSTGRES and PSYCOPG2_OK:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute("SELECT id,original_name,uploaded_at,analysis,file_type FROM health_records ORDER BY uploaded_at DESC")
+        u=session.get("username","admin"); cur.execute("SELECT id,original_name,uploaded_at,analysis,file_type FROM health_records WHERE username=%s ORDER BY uploaded_at DESC",(u,))
         data = [dict(r) for r in cur.fetchall()]; cur.close()
     else:
-        data = [dict(r) for r in conn.execute("SELECT id,original_name,uploaded_at,analysis,file_type FROM health_records ORDER BY uploaded_at DESC").fetchall()]
+        data = [dict(r) for r in conn.execute("SELECT id,original_name,uploaded_at,analysis,file_type FROM health_records WHERE username=? ORDER BY uploaded_at DESC",(session.get("username","admin"),)).fetchall()]
     conn.close(); return jsonify(data)
 
 @app.route("/api/records/upload", methods=["POST"])
@@ -528,11 +531,9 @@ def upload_record():
     conn = get_db()
     if USE_POSTGRES and PSYCOPG2_OK:
         cur = conn.cursor()
-        cur.execute("INSERT INTO health_records (filename,original_name,uploaded_at,analysis,file_type) VALUES (%s,%s,%s,%s,%s)",
-                    (filename,file.filename,datetime.datetime.now().isoformat(),analysis,ext)); cur.close()
+        u=session.get("username","admin"); cur.execute("INSERT INTO health_records (filename,original_name,uploaded_at,analysis,file_type,username) VALUES (%s,%s,%s,%s,%s,%s)",(filename,file.filename,datetime.datetime.now().isoformat(),analysis,ext,u)); cur.close()
     else:
-        conn.execute("INSERT INTO health_records (filename,original_name,uploaded_at,analysis,file_type) VALUES (?,?,?,?,?)",
-                     (filename,file.filename,datetime.datetime.now().isoformat(),analysis,ext))
+        u=session.get("username","admin"); conn.execute("INSERT INTO health_records (filename,original_name,uploaded_at,analysis,file_type,username) VALUES (?,?,?,?,?,?)",(filename,file.filename,datetime.datetime.now().isoformat(),analysis,ext,u))
     conn.commit(); conn.close()
     return jsonify({"status":"ok","analysis":analysis})
 
@@ -553,10 +554,10 @@ def get_cycle():
     conn = get_db()
     if USE_POSTGRES and PSYCOPG2_OK:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute("SELECT * FROM cycle_log ORDER BY start_date DESC LIMIT 12")
+        u=session.get("username","admin"); cur.execute("SELECT * FROM cycle_log WHERE username=%s ORDER BY start_date DESC LIMIT 12",(u,))
         data = [dict(r) for r in cur.fetchall()]; cur.close()
     else:
-        data = [dict(r) for r in conn.execute("SELECT * FROM cycle_log ORDER BY start_date DESC LIMIT 12").fetchall()]
+        data = [dict(r) for r in conn.execute("SELECT * FROM cycle_log WHERE username=? ORDER BY start_date DESC LIMIT 12",(session.get("username","admin"),)).fetchall()]
     conn.close(); return jsonify(data)
 
 @app.route("/api/cycle", methods=["POST"])
@@ -565,11 +566,9 @@ def add_cycle():
     d = request.json; conn = get_db()
     if USE_POSTGRES and PSYCOPG2_OK:
         cur = conn.cursor()
-        cur.execute("INSERT INTO cycle_log (start_date,end_date,cycle_length,flow_intensity,symptoms,notes) VALUES (%s,%s,%s,%s,%s,%s)",
-                    (d.get("start_date"),d.get("end_date"),d.get("cycle_length"),d.get("flow_intensity"),json.dumps(d.get("symptoms",[])),d.get("notes",""))); cur.close()
+        u=session.get("username","admin"); cur.execute("INSERT INTO cycle_log (start_date,end_date,cycle_length,flow_intensity,symptoms,notes,username) VALUES (%s,%s,%s,%s,%s,%s,%s)",(d.get("start_date"),d.get("end_date"),d.get("cycle_length"),d.get("flow_intensity"),json.dumps(d.get("symptoms",[])),d.get("notes",""),u)); cur.close()
     else:
-        conn.execute("INSERT INTO cycle_log (start_date,end_date,cycle_length,flow_intensity,symptoms,notes) VALUES (?,?,?,?,?,?)",
-                     (d.get("start_date"),d.get("end_date"),d.get("cycle_length"),d.get("flow_intensity"),json.dumps(d.get("symptoms",[])),d.get("notes","")))
+        u=session.get("username","admin"); conn.execute("INSERT INTO cycle_log (start_date,end_date,cycle_length,flow_intensity,symptoms,notes,username) VALUES (?,?,?,?,?,?,?)",(d.get("start_date"),d.get("end_date"),d.get("cycle_length"),d.get("flow_intensity"),json.dumps(d.get("symptoms",[])),d.get("notes",""),u))
     conn.commit(); conn.close(); return jsonify({"status":"ok"})
 
 # ── Diet ──────────────────────────────────────────────────────────────────────
@@ -579,10 +578,10 @@ def get_diet():
     date = request.args.get("date", datetime.date.today().isoformat()); conn = get_db()
     if USE_POSTGRES and PSYCOPG2_OK:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute("SELECT * FROM diet_log WHERE date=%s ORDER BY id",(date,))
+        u=session.get("username","admin"); cur.execute("SELECT * FROM diet_log WHERE date=%s AND username=%s ORDER BY id",(date,u))
         data = [dict(r) for r in cur.fetchall()]; cur.close()
     else:
-        data = [dict(r) for r in conn.execute("SELECT * FROM diet_log WHERE date=? ORDER BY id",(date,)).fetchall()]
+        data = [dict(r) for r in conn.execute("SELECT * FROM diet_log WHERE date=? AND username=? ORDER BY id",(date,session.get("username","admin"))).fetchall()]
     conn.close(); return jsonify(data)
 
 @app.route("/api/diet", methods=["POST"])
@@ -591,11 +590,9 @@ def add_diet():
     d = request.json; conn = get_db()
     if USE_POSTGRES and PSYCOPG2_OK:
         cur = conn.cursor()
-        cur.execute("INSERT INTO diet_log (date,meal_type,food_items,calories,water_ml,notes) VALUES (%s,%s,%s,%s,%s,%s)",
-                    (d.get("date",datetime.date.today().isoformat()),d.get("meal_type"),d.get("food_items"),d.get("calories",0),d.get("water_ml",0),d.get("notes",""))); cur.close()
+        u=session.get("username","admin"); cur.execute("INSERT INTO diet_log (date,meal_type,food_items,calories,water_ml,notes,username) VALUES (%s,%s,%s,%s,%s,%s,%s)",(d.get("date",datetime.date.today().isoformat()),d.get("meal_type"),d.get("food_items"),d.get("calories",0),d.get("water_ml",0),d.get("notes",""),u)); cur.close()
     else:
-        conn.execute("INSERT INTO diet_log (date,meal_type,food_items,calories,water_ml,notes) VALUES (?,?,?,?,?,?)",
-                     (d.get("date",datetime.date.today().isoformat()),d.get("meal_type"),d.get("food_items"),d.get("calories",0),d.get("water_ml",0),d.get("notes","")))
+        u=session.get("username","admin"); conn.execute("INSERT INTO diet_log (date,meal_type,food_items,calories,water_ml,notes,username) VALUES (?,?,?,?,?,?,?)",(d.get("date",datetime.date.today().isoformat()),d.get("meal_type"),d.get("food_items"),d.get("calories",0),d.get("water_ml",0),d.get("notes",""),u))
     conn.commit(); conn.close(); return jsonify({"status":"ok"})
 
 @app.route("/api/diet/<int:eid>", methods=["DELETE"])
@@ -803,12 +800,12 @@ def diet_analysis():
     conn = get_db()
     if USE_POSTGRES and PSYCOPG2_OK:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute("SELECT * FROM diet_log WHERE date=%s ORDER BY id",(date,))
+        u=session.get("username","admin"); cur.execute("SELECT * FROM diet_log WHERE date=%s AND username=%s ORDER BY id",(date,u))
         entries = [dict(r) for r in cur.fetchall()]
         cur.execute("SELECT * FROM user_profile WHERE username=%s",(username,))
         profile = cur.fetchone(); cur.close()
     else:
-        entries = [dict(r) for r in conn.execute("SELECT * FROM diet_log WHERE date=? ORDER BY id",(date,)).fetchall()]
+        entries = [dict(r) for r in conn.execute("SELECT * FROM diet_log WHERE date=? AND username=? ORDER BY id",(date,session.get("username","admin"))).fetchall()]
         r = conn.execute("SELECT * FROM user_profile WHERE username=?",(username,)).fetchone()
         profile = dict(r) if r else None
     conn.close()
@@ -867,10 +864,10 @@ def get_appointments():
     conn = get_db()
     if USE_POSTGRES and PSYCOPG2_OK:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute("SELECT * FROM appointments ORDER BY date,time")
+        u=session.get("username","admin"); cur.execute("SELECT * FROM appointments WHERE username=%s ORDER BY date,time",(u,))
         data = [dict(r) for r in cur.fetchall()]; cur.close()
     else:
-        data = [dict(r) for r in conn.execute("SELECT * FROM appointments ORDER BY date,time").fetchall()]
+        data = [dict(r) for r in conn.execute("SELECT * FROM appointments WHERE username=? ORDER BY date,time",(session.get("username","admin"),)).fetchall()]
     conn.close(); return jsonify(data)
 
 @app.route("/api/appointments", methods=["POST"])
@@ -879,11 +876,9 @@ def add_appointment():
     d = request.json; conn = get_db()
     if USE_POSTGRES and PSYCOPG2_OK:
         cur = conn.cursor()
-        cur.execute("INSERT INTO appointments (doctor_name,specialty,date,time,location,reason,notes) VALUES (%s,%s,%s,%s,%s,%s,%s)",
-                    (d["doctor_name"],d.get("specialty",""),d["date"],d.get("time",""),d.get("location",""),d.get("reason",""),d.get("notes",""))); cur.close()
+        u=session.get("username","admin"); cur.execute("INSERT INTO appointments (doctor_name,specialty,date,time,location,reason,notes,username) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",(d["doctor_name"],d.get("specialty",""),d["date"],d.get("time",""),d.get("location",""),d.get("reason",""),d.get("notes",""),u)); cur.close()
     else:
-        conn.execute("INSERT INTO appointments (doctor_name,specialty,date,time,location,reason,notes) VALUES (?,?,?,?,?,?,?)",
-                     (d["doctor_name"],d.get("specialty",""),d["date"],d.get("time",""),d.get("location",""),d.get("reason",""),d.get("notes","")))
+        u=session.get("username","admin"); conn.execute("INSERT INTO appointments (doctor_name,specialty,date,time,location,reason,notes,username) VALUES (?,?,?,?,?,?,?,?)",(d["doctor_name"],d.get("specialty",""),d["date"],d.get("time",""),d.get("location",""),d.get("reason",""),d.get("notes",""),u))
     conn.commit(); conn.close(); return jsonify({"status":"ok"})
 
 @app.route("/api/appointments/<int:aid>", methods=["PATCH"])
@@ -917,26 +912,27 @@ def chat():
     if not client:
         return jsonify({"reply":"⚠️ ANTHROPIC_API_KEY not set. Add it in Railway → Variables tab."})
     today = datetime.date.today().isoformat(); conn = get_db()
+    u = session.get("username","admin")
     try:
         if USE_POSTGRES and PSYCOPG2_OK:
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            cur.execute("SELECT * FROM vitals ORDER BY timestamp DESC LIMIT 1"); lv = cur.fetchone()
-            cur.execute("SELECT name,dose FROM medications WHERE active=1"); meds = [dict(r) for r in cur.fetchall()]
-            cur.execute("SELECT m.name,ml.taken FROM med_logs ml JOIN medications m ON ml.med_id=m.id WHERE ml.date=%s",(today,)); mlogs = [dict(r) for r in cur.fetchall()]
-            cur.execute("SELECT * FROM appointments WHERE date>=%s AND completed=0 ORDER BY date,time LIMIT 1",(today,)); appt = cur.fetchone()
-            cur.execute("SELECT SUM(calories) as cal,SUM(water_ml) as water FROM diet_log WHERE date=%s",(today,)); diet = cur.fetchone()
-            cur.execute("SELECT role,content FROM chat_history ORDER BY id DESC LIMIT 10"); hist = list(reversed([dict(r) for r in cur.fetchall()]))
+            cur.execute("SELECT * FROM vitals WHERE username=%s ORDER BY timestamp DESC LIMIT 1",(u,)); lv = cur.fetchone()
+            cur.execute("SELECT name,dose FROM medications WHERE active=1 AND (username=%s OR username IS NULL)",(u,)); meds = [dict(r) for r in cur.fetchall()]
+            cur.execute("SELECT m.name,ml.taken FROM med_logs ml JOIN medications m ON ml.med_id=m.id WHERE ml.date=%s AND (m.username=%s OR m.username IS NULL)",(today,u)); mlogs = [dict(r) for r in cur.fetchall()]
+            cur.execute("SELECT * FROM appointments WHERE date>=%s AND completed=0 AND username=%s ORDER BY date,time LIMIT 1",(today,u)); appt = cur.fetchone()
+            cur.execute("SELECT SUM(calories) as cal,SUM(water_ml) as water FROM diet_log WHERE date=%s AND username=%s",(today,u)); diet = cur.fetchone()
+            cur.execute("SELECT role,content FROM chat_history WHERE username=%s ORDER BY id DESC LIMIT 10",(u,)); hist = list(reversed([dict(r) for r in cur.fetchall()]))
             cur.close()
         else:
-            lv = conn.execute("SELECT * FROM vitals ORDER BY timestamp DESC LIMIT 1").fetchone()
+            lv = conn.execute("SELECT * FROM vitals WHERE username=? ORDER BY timestamp DESC LIMIT 1",(u,)).fetchone()
             lv = dict(lv) if lv else None
-            meds = [dict(r) for r in conn.execute("SELECT name,dose FROM medications WHERE active=1").fetchall()]
-            mlogs = [dict(r) for r in conn.execute("SELECT m.name,ml.taken FROM med_logs ml JOIN medications m ON ml.med_id=m.id WHERE ml.date=?",(today,)).fetchall()]
-            appt = conn.execute("SELECT * FROM appointments WHERE date>=? AND completed=0 ORDER BY date,time LIMIT 1",(today,)).fetchone()
+            meds = [dict(r) for r in conn.execute("SELECT name,dose FROM medications WHERE active=1 AND (username=? OR username IS NULL)",(u,)).fetchall()]
+            mlogs = [dict(r) for r in conn.execute("SELECT m.name,ml.taken FROM med_logs ml JOIN medications m ON ml.med_id=m.id WHERE ml.date=? AND (m.username=? OR m.username IS NULL)",(today,u)).fetchall()]
+            appt = conn.execute("SELECT * FROM appointments WHERE date>=? AND completed=0 AND username=? ORDER BY date,time LIMIT 1",(today,u)).fetchone()
             appt = dict(appt) if appt else None
-            diet = conn.execute("SELECT SUM(calories) as cal,SUM(water_ml) as water FROM diet_log WHERE date=?",(today,)).fetchone()
+            diet = conn.execute("SELECT SUM(calories) as cal,SUM(water_ml) as water FROM diet_log WHERE date=? AND username=?",(today,u)).fetchone()
             diet = dict(diet) if diet else None
-            hist = list(reversed([dict(r) for r in conn.execute("SELECT role,content FROM chat_history ORDER BY id DESC LIMIT 10").fetchall()]))
+            hist = list(reversed([dict(r) for r in conn.execute("SELECT role,content FROM chat_history WHERE username=? ORDER BY id DESC LIMIT 10",(u,)).fetchall()]))
     except Exception as e:
         conn.close()
         return jsonify({"reply": f"Database error: {str(e)}"})
@@ -959,14 +955,15 @@ Diet: {str(diet['cal'] or 0)+' kcal' if diet else 'Not logged'}"""
 
     ts = datetime.datetime.now().isoformat()
     try:
+        u = session.get("username","admin")
         if USE_POSTGRES and PSYCOPG2_OK:
             cur = conn.cursor()
-            cur.execute("INSERT INTO chat_history (role,content,timestamp) VALUES (%s,%s,%s)",("user",user_msg,ts))
-            cur.execute("INSERT INTO chat_history (role,content,timestamp) VALUES (%s,%s,%s)",("assistant",reply,ts))
+            cur.execute("INSERT INTO chat_history (role,content,timestamp,username) VALUES (%s,%s,%s,%s)",("user",user_msg,ts,u))
+            cur.execute("INSERT INTO chat_history (role,content,timestamp,username) VALUES (%s,%s,%s,%s)",("assistant",reply,ts,u))
             cur.close()
         else:
-            conn.execute("INSERT INTO chat_history (role,content,timestamp) VALUES (?,?,?)",("user",user_msg,ts))
-            conn.execute("INSERT INTO chat_history (role,content,timestamp) VALUES (?,?,?)",("assistant",reply,ts))
+            conn.execute("INSERT INTO chat_history (role,content,timestamp,username) VALUES (?,?,?,?)",("user",user_msg,ts,u))
+            conn.execute("INSERT INTO chat_history (role,content,timestamp,username) VALUES (?,?,?,?)",("assistant",reply,ts,u))
         conn.commit()
     except Exception: pass
     conn.close()
@@ -978,10 +975,10 @@ def get_chat_history():
     conn = get_db()
     if USE_POSTGRES and PSYCOPG2_OK:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute("SELECT role,content,timestamp FROM chat_history ORDER BY id DESC LIMIT 40")
+        u=session.get("username","admin"); cur.execute("SELECT role,content,timestamp FROM chat_history WHERE username=%s ORDER BY id DESC LIMIT 40",(u,))
         data = list(reversed([dict(r) for r in cur.fetchall()])); cur.close()
     else:
-        data = list(reversed([dict(r) for r in conn.execute("SELECT role,content,timestamp FROM chat_history ORDER BY id DESC LIMIT 40").fetchall()]))
+        data = list(reversed([dict(r) for r in conn.execute("SELECT role,content,timestamp FROM chat_history WHERE username=? ORDER BY id DESC LIMIT 40",(session.get("username","admin"),)).fetchall()]))
     conn.close(); return jsonify(data)
 
 @app.route("/api/chat/clear", methods=["POST"])
@@ -989,9 +986,9 @@ def get_chat_history():
 def clear_chat():
     conn = get_db()
     if USE_POSTGRES and PSYCOPG2_OK:
-        cur = conn.cursor(); cur.execute("DELETE FROM chat_history"); cur.close()
+        cur = conn.cursor(); u=session.get("username","admin"); cur.execute("DELETE FROM chat_history WHERE username=%s",(u,)); cur.close()
     else:
-        conn.execute("DELETE FROM chat_history")
+        conn.execute("DELETE FROM chat_history WHERE username=?",(session.get("username","admin"),))
     conn.commit(); conn.close(); return jsonify({"status":"ok"})
 
 
@@ -1157,7 +1154,159 @@ def gf_sync():
     conn.commit(); conn.close()
     return jsonify({"success": True, "data": data})
 
+# ── Food Photo Analysis ────────────────────────────────────────────────────────
+@app.route("/api/analyze-food-photo", methods=["POST"])
+@login_required
+def analyze_food_photo():
+    if "photo" not in request.files:
+        return jsonify({"error": "No photo uploaded"}), 400
+    photo = request.files["photo"]
+    ext = photo.filename.rsplit(".", 1)[-1].lower()
+    if ext not in ("jpg","jpeg","png","webp"):
+        return jsonify({"error": "Please upload a JPG or PNG image"}), 400
+    client = get_ai_client()
+    if not client:
+        return jsonify({"error": "AI not configured"}), 400
+    import base64
+    img_data = base64.b64encode(photo.read()).decode()
+    media_type = "image/jpeg" if ext in ("jpg","jpeg") else f"image/{ext}"
+    try:
+        msg = client.messages.create(
+            model="claude-opus-4-5", max_tokens=600,
+            messages=[{"role":"user","content":[
+                {"type":"image","source":{"type":"base64","media_type":media_type,"data":img_data}},
+                {"type":"text","text":"""You are a nutrition expert. Analyze this food photo and identify all food items visible.
+Respond ONLY with a valid JSON object (no markdown):
+{"food_items": "2 idlis + sambar + coconut chutney", "calories": 320, "protein_g": 8, "carbs_g": 55, "fat_g": 6, "fiber_g": 4, "breakdown": "Idli 200kcal + Sambar 80kcal + Chutney 40kcal", "health_note": "Good source of fermented carbs, low fat breakfast", "meal_type": "Breakfast"}
+Be accurate for Indian foods. Estimate typical restaurant/home serving sizes."""}
+            ]}]
+        )
+        import re
+        text = msg.content[0].text.strip()
+        match = re.search(r'\{.*\}', text, re.DOTALL)
+        if match:
+            return jsonify(json.loads(match.group()))
+        return jsonify({"error": "Could not analyze photo"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
+# ── Email Diet Report ──────────────────────────────────────────────────────────
+@app.route("/api/send-diet-email", methods=["POST"])
+@login_required
+def send_diet_email():
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    d = request.json
+    to_email = d.get("email","").strip()
+    if not to_email or "@" not in to_email:
+        return jsonify({"error": "Valid email address required"}), 400
+
+    smtp_host = os.environ.get("SMTP_HOST","smtp.gmail.com")
+    smtp_port = int(os.environ.get("SMTP_PORT","587"))
+    smtp_user = os.environ.get("SMTP_USER","")
+    smtp_pass = os.environ.get("SMTP_PASS","")
+
+    if not smtp_user or not smtp_pass:
+        return jsonify({"error": "Email not configured. Add SMTP_USER and SMTP_PASS to Railway Variables."}), 400
+
+    # Get today's diet data
+    username = session.get("username","admin")
+    today = datetime.date.today().isoformat()
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT * FROM diet_log WHERE date=%s AND username=%s ORDER BY id",(today,username))
+        entries = [dict(r) for r in cur.fetchall()]
+        cur.execute("SELECT * FROM user_profile WHERE username=%s",(username,))
+        profile = cur.fetchone(); cur.close()
+    else:
+        entries = [dict(r) for r in conn.execute("SELECT * FROM diet_log WHERE date=? AND username=? ORDER BY id",(today,username)).fetchall()]
+        r = conn.execute("SELECT * FROM user_profile WHERE username=?",(username,)).fetchone()
+        profile = dict(r) if r else None
+    conn.close()
+
+    total_cal = sum(e['calories'] or 0 for e in entries)
+    total_water = sum(e['water_ml'] or 0 for e in entries)
+
+    # Generate AI report
+    client = get_ai_client()
+    ai_report = ""
+    if client and entries:
+        food_summary = "\n".join([f"- {e['meal_type']}: {e['food_items']} ({e['calories']} kcal)" for e in entries])
+        profile_ctx = f"Patient: {profile.get('full_name','') if profile else ''}, {profile.get('age','?') if profile else '?'}y, Goals: {profile.get('health_goals','') if profile else ''}" if profile else ""
+        try:
+            msg = client.messages.create(model="claude-opus-4-5", max_tokens=600,
+                messages=[{"role":"user","content":f"""Write a friendly, encouraging daily diet summary email for a health app user.
+
+{profile_ctx}
+Date: {today}
+Total calories: {total_cal} kcal
+Water: {total_water} ml
+Meals:
+{food_summary}
+
+Include:
+1. What they did well today (2 sentences)
+2. One thing to improve tomorrow (1 sentence)  
+3. Tomorrow's suggested breakfast, lunch, dinner (Indian foods)
+4. One motivational closing line
+
+Keep it warm, personal, concise. No markdown headers."""}])
+            ai_report = msg.content[0].text
+        except Exception:
+            ai_report = "Keep up the great work with your health journey!"
+
+    name = profile.get("full_name", username) if profile else username
+    html = f"""
+<html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#f8f8f8;padding:20px">
+<div style="background:#060b14;border-radius:12px;padding:24px;color:#e8edf5">
+  <h2 style="color:#00d4c8;margin:0 0 4px;font-size:22px">HealthMate Daily Report</h2>
+  <p style="color:#8a9ab8;margin:0 0 20px;font-size:13px">{today} · {name}</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px">
+    <div style="background:#141f35;border-radius:8px;padding:14px;text-align:center">
+      <div style="font-size:28px;font-weight:700;color:#00d4c8">{total_cal}</div>
+      <div style="font-size:12px;color:#8a9ab8">calories</div>
+    </div>
+    <div style="background:#141f35;border-radius:8px;padding:14px;text-align:center">
+      <div style="font-size:28px;font-weight:700;color:#0099ff">{total_water}</div>
+      <div style="font-size:12px;color:#8a9ab8">ml water</div>
+    </div>
+    <div style="background:#141f35;border-radius:8px;padding:14px;text-align:center">
+      <div style="font-size:28px;font-weight:700;color:#00e5a0">{len(entries)}</div>
+      <div style="font-size:12px;color:#8a9ab8">meals logged</div>
+    </div>
+  </div>
+
+  <div style="background:#141f35;border-radius:8px;padding:16px;margin-bottom:16px">
+    <h3 style="color:#00d4c8;font-size:14px;margin:0 0 10px">Today's Meals</h3>
+    {''.join([f'<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px"><span style="color:#8a9ab8">{e["meal_type"]}:</span> {e["food_items"]} <span style="color:#4a5a78">({e["calories"]} kcal)</span></div>' for e in entries]) or '<p style="color:#4a5a78;font-size:13px">No meals logged</p>'}
+  </div>
+
+  <div style="background:#141f35;border-radius:8px;padding:16px;font-size:14px;line-height:1.7;color:#8a9ab8">
+    {ai_report.replace(chr(10), '<br>')}
+  </div>
+
+  <p style="color:#4a5a78;font-size:11px;margin-top:20px;text-align:center">HealthMate · Your personal AI health companion</p>
+</div>
+</body></html>"""
+
+    try:
+        msg_email = MIMEMultipart("alternative")
+        msg_email["Subject"] = f"HealthMate Daily Report — {today}"
+        msg_email["From"] = smtp_user
+        msg_email["To"] = to_email
+        msg_email.attach(MIMEText(html, "html"))
+
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_user, to_email, msg_email.as_string())
+        return jsonify({"status":"ok","message":f"Diet report sent to {to_email}"})
+    except Exception as e:
+        return jsonify({"error": f"Email failed: {str(e)}"}), 400
 
 # ── Init on startup ───────────────────────────────────────────────────────────
 with app.app_context():
