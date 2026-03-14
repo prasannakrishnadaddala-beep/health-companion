@@ -867,7 +867,8 @@ async function renderDiet() {
       <div><div class="page-title">Diet & Nutrition</div><div class="page-sub">Track meals, calories & water intake</div></div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <input type="date" id="dietDate" value="${today}" onchange="loadDiet()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;font-family:var(--font);background:var(--bg3);color:var(--text)">
-        <button class="btn" onclick="showDietAnalysis()" style="background:var(--color-background-info);color:var(--color-text-info);border-color:var(--color-border-info)">🤖 AI Dietician</button>
+        <button class="btn" onclick="showDietAnalysis()" style="background:rgba(124,111,255,0.1);color:var(--accent3);border-color:rgba(124,111,255,0.3)">🤖 AI Dietician</button>
+        <button class="btn" onclick="sendDietEmail()" style="background:rgba(0,229,160,0.1);color:var(--success);border-color:rgba(0,229,160,0.3)">📧 Email Report</button>
         ${strava.connected
           ? `<button class="btn btn-primary" onclick="syncStrava()" id="stravaBtn">🏃 Sync Strava</button>
              <button class="btn btn-sm" onclick="disconnectStrava()" style="font-size:11px;color:var(--muted)">Disconnect</button>`
@@ -890,7 +891,11 @@ async function renderDiet() {
             <label>Food Items</label>
             <div style="display:flex;gap:8px">
               <input type="text" id="d-food" placeholder="e.g. 1 cup rice + dal + bitter gourd" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();analyzeCals();}">
-              <button class="btn" onclick="analyzeCals()" id="analyzeBtn" style="white-space:nowrap;background:var(--color-background-info);color:var(--color-text-info);border-color:var(--color-border-info)">✨ Analyze</button>
+              <button class="btn" onclick="analyzeCals()" id="analyzeBtn" style="white-space:nowrap;background:rgba(0,212,200,0.1);color:var(--accent);border-color:rgba(0,212,200,0.3)">✨ Analyze</button>
+              <label for="foodPhotoInput" style="cursor:pointer">
+                <div class="btn" style="background:rgba(0,153,255,0.1);color:var(--accent2);border-color:rgba(0,153,255,0.3)">📸 Photo</div>
+              </label>
+              <input type="file" id="foodPhotoInput" accept="image/*" style="display:none" onchange="analyzePhoto(this)">
             </div>
           </div>
           <div id="aiCalResult" style="display:none;background:var(--color-background-success);border:0.5px solid var(--color-border-success);border-radius:var(--border-radius-md);padding:10px 12px;font-size:13px;margin-bottom:10px;color:var(--color-text-success)"></div>
@@ -1106,6 +1111,56 @@ async function deleteAppt(id) {
 
 
 // ─── Strava Sync ──────────────────────────────────────────────────────
+async function analyzePhoto(input) {
+  const file = input.files[0]; if (!file) return;
+  const resultEl = document.getElementById('aiCalResult');
+  resultEl.style.display = 'block';
+  resultEl.style.cssText = 'display:block;background:rgba(0,153,255,0.08);border:1px solid rgba(0,153,255,0.2);border-radius:10px;padding:12px 14px;font-size:13px;margin-bottom:10px;line-height:1.7;color:#8a9ab8';
+  resultEl.innerHTML = '<span class="spinner"></span>Analyzing your food photo with AI…';
+  const form = new FormData(); form.append('photo', file);
+  try {
+    const res = await fetch('/api/analyze-food-photo', {method:'POST', body: form});
+    const d = await res.json();
+    if (d.calories) {
+      document.getElementById('d-food').value = d.food_items || '';
+      document.getElementById('d-cal').value = d.calories;
+      if (d.meal_type) document.getElementById('d-meal').value = d.meal_type;
+      document.getElementById('d-notes').value = JSON.stringify({protein_g:d.protein_g,carbs_g:d.carbs_g,fat_g:d.fat_g,fiber_g:d.fiber_g});
+      resultEl.style.cssText = 'display:block;background:rgba(0,229,160,0.06);border:1px solid rgba(0,229,160,0.2);border-radius:10px;padding:12px 14px;font-size:13px;margin-bottom:10px;line-height:1.7';
+      resultEl.innerHTML = `<div style="font-weight:500;color:var(--success);margin-bottom:8px">📸 Photo analyzed — ${d.calories} kcal</div>
+        <div style="color:var(--text2)">${d.food_items}</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px">
+          ${[['Protein',d.protein_g+'g','#2563eb'],['Carbs',d.carbs_g+'g','#d97706'],['Fat',d.fat_g+'g','#dc2626'],['Fiber',d.fiber_g+'g','#16a34a']].map(([n,v,c])=>
+            `<div style="background:var(--surface);border-radius:6px;padding:6px;text-align:center"><div style="font-size:14px;font-weight:500;color:${c}">${v}</div><div style="font-size:10px;color:var(--text3)">${n}</div></div>`).join('')}
+        </div>
+        ${d.health_note ? `<div style="font-size:12px;color:var(--text3);margin-top:6px">💡 ${d.health_note}</div>` : ''}`;
+    } else {
+      resultEl.innerHTML = `<span style="color:var(--danger)">❌ ${d.error || 'Could not analyze photo. Please enter food details manually.'}</span>`;
+    }
+  } catch(e) {
+    resultEl.innerHTML = `<span style="color:var(--danger)">❌ Photo analysis failed: ${e.message}</span>`;
+  }
+  input.value = '';
+}
+
+async function sendDietEmail() {
+  const email = prompt('Enter email address to send the diet report:');
+  if (!email) return;
+  const statusEl = document.getElementById('stravaStatus');
+  if (statusEl) statusEl.innerHTML = '<div class="alert alert-info"><span class="spinner"></span>Generating and sending your diet report…</div>';
+  try {
+    const res = await fetch('/api/send-diet-email', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const d = await res.json();
+    if (d.status === 'ok') {
+      if (statusEl) statusEl.innerHTML = `<div class="alert alert-success">✅ ${d.message}</div>`;
+    } else {
+      if (statusEl) statusEl.innerHTML = `<div class="alert alert-danger">❌ ${d.error}</div>`;
+    }
+  } catch(e) {
+    if (statusEl) statusEl.innerHTML = `<div class="alert alert-danger">❌ ${e.message}</div>`;
+  }
+}
+
 async function disconnectStrava() {
   if (!confirm('Disconnect Strava?')) return;
   await fetch('/api/strava/disconnect', {method:'POST'});
