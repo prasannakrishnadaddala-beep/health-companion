@@ -616,38 +616,58 @@ def gf_status():
 @app.route("/googlefit/connect")
 @login_required
 def gf_connect():
-    """Redirect user to Google OAuth page."""
+    """Redirect user to Google OAuth page — pass username in state."""
     if not GFIT_OK or not gfit.is_configured():
         return redirect("/googlefit-setup?error=not_configured")
-    auth_url = gfit.get_auth_url(get_redirect_uri())
+    # Encode username in state so callback works even if session cookie is lost
+    import base64
+    state = base64.urlsafe_b64encode(session["username"].encode()).decode()
+    auth_url = gfit.get_auth_url(get_redirect_uri(), state=state)
     if not auth_url:
         return redirect("/googlefit-setup?error=no_auth_url")
     return redirect(auth_url)
 
 @app.route("/googlefit/callback")
 def gf_callback():
-    """Google redirects here after user approves."""
-    # Session may survive — if not, store code in state and re-auth
+    """Google redirects here — username recovered from state parameter."""
     code = request.args.get("code")
     error = request.args.get("error")
+    state = request.args.get("state", "")
+
     if error or not code:
         return redirect("/googlefit-setup?error=" + (error or "no_code"))
 
-    # If session lost during OAuth redirect, send to login first
-    if not session.get("logged_in"):
-        # Store the code temporarily and redirect to login
-        session["pending_gfit_code"] = code
-        session["pending_gfit_redirect"] = request.url
-        return redirect("/login?next=googlefit")
+    # Recover username from state (doesn't depend on session cookie)
+    username = None
+    if state:
+        try:
+            import base64
+            username = base64.urlsafe_b64decode(state.encode()).decode()
+        except Exception:
+            username = None
+
+    # Fallback to session if state decode failed
+    if not username:
+        username = session.get("username")
+
+    if not username:
+        return redirect("/login")
 
     try:
         token_dict = gfit.exchange_code(code, get_redirect_uri())
         if token_dict:
-            save_user_token(session["username"], token_dict)
+            save_user_token(username, token_dict)
+            # Restore session if it was lost
+            session.permanent = True
+            session["logged_in"] = True
+            session["username"] = username
             return redirect("/googlefit-setup?success=1")
         return redirect("/googlefit-setup?error=exchange_failed")
     except Exception as e:
-        return redirect(f"/googlefit-setup?error=auth_failed")
+        import traceback
+        traceback.print_exc()
+        err = str(e).replace(" ","_")[:80]
+        return redirect(f"/googlefit-setup?error={err}")
 
 @app.route("/api/googlefit/disconnect", methods=["POST"])
 @login_required

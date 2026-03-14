@@ -57,23 +57,43 @@ def get_auth_url(redirect_uri, state=None):
     return auth_url
 
 def exchange_code(code, redirect_uri):
-    """Exchange auth code for tokens. Returns token dict or None."""
+    """Exchange auth code for tokens. Stateless — no flow object needed."""
     if not GOOGLE_LIBS_AVAILABLE or not is_configured():
         return None
     config = get_client_config()
-    config["web"]["redirect_uris"] = [redirect_uri]
-    flow = Flow.from_client_config(config, scopes=SCOPES, redirect_uri=redirect_uri)
-    flow.fetch_token(code=code)
-    creds = flow.credentials
-    return {
-        "token": creds.token,
-        "refresh_token": creds.refresh_token,
-        "token_uri": creds.token_uri,
-        "client_id": creds.client_id,
-        "client_secret": creds.client_secret,
-        "scopes": list(creds.scopes) if creds.scopes else SCOPES,
-        "expiry": creds.expiry.isoformat() if creds.expiry else None,
-    }
+    if not config:
+        return None
+    import urllib.request, urllib.parse
+    # Direct token exchange via HTTP POST — no flow state needed
+    data = urllib.parse.urlencode({
+        "code": code,
+        "client_id": config["web"]["client_id"],
+        "client_secret": config["web"]["client_secret"],
+        "redirect_uri": redirect_uri,
+        "grant_type": "authorization_code",
+    }).encode()
+    req = urllib.request.Request(
+        "https://oauth2.googleapis.com/token",
+        data=data,
+        headers={"Content-Type": "application/x-www-form-urlencoded"}
+    )
+    try:
+        with urllib.request.urlopen(req) as resp:
+            token_data = json.loads(resp.read().decode())
+        return {
+            "token": token_data.get("access_token"),
+            "refresh_token": token_data.get("refresh_token"),
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "client_id": config["web"]["client_id"],
+            "client_secret": config["web"]["client_secret"],
+            "scopes": SCOPES,
+            "expiry": (
+                datetime.datetime.utcnow() +
+                datetime.timedelta(seconds=token_data.get("expires_in", 3600))
+            ).isoformat(),
+        }
+    except Exception as e:
+        raise Exception(f"Token exchange failed: {str(e)}")
 
 def get_credentials_from_token(token_dict):
     """Rebuild Credentials object from stored token dict."""
