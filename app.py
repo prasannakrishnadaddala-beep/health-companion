@@ -689,16 +689,32 @@ Food consumed:
 {food_summary}
 Total: {total_cal} kcal, {total_water}ml water
 
-Give a detailed, personalized dietary analysis. Be specific, warm, and actionable. Include:
-1. Overall assessment of today's diet
-2. Macro nutrient balance (protein/carbs/fat)
-3. Key micronutrients that look good or are likely missing
-4. Hydration assessment  
-5. Specific recommendations for tomorrow
-6. Any concerns based on their medical conditions
-7. One Indian recipe suggestion that would fill nutritional gaps
+Give a detailed, personalized dietary analysis. Be specific, warm, and actionable. Use this structure:
 
-Be conversational, specific to Indian diet, and address them personally. 3-4 paragraphs."""
+## Overall Assessment
+[2-3 sentences about today's diet overall]
+
+## Macronutrient Balance
+[Protein/carbs/fat analysis with specific numbers]
+
+## Key Micronutrients
+[What's good, what's missing with specific vitamins/minerals]
+
+## Hydration
+[Water intake assessment vs target]
+
+## Tomorrow's Recommendations
+- [Specific actionable tip 1]
+- [Specific actionable tip 2]
+- [Specific actionable tip 3]
+
+## Health Alert (if any)
+[Any concerns based on medical conditions - skip if none]
+
+## Recipe Suggestion
+[One specific Indian recipe to fill nutritional gaps with ingredients]
+
+Be warm, personal, specific to Indian diet. Address them by their health goals."""
     try:
         msg = client.messages.create(model="claude-opus-4-5", max_tokens=800,
             messages=[{"role":"user","content":prompt}])
