@@ -90,6 +90,7 @@ def init_db():
         ("diet_log", "username", "TEXT DEFAULT 'admin'"),
         ("appointments", "username", "TEXT DEFAULT 'admin'"),
         ("chat_history", "username", "TEXT DEFAULT 'admin'"),
+        ("user_profile", "email", "TEXT"),
     ]
     # Also create profile table if not exists
     if USE_POSTGRES and PSYCOPG2_OK:
@@ -235,18 +236,21 @@ def logout():
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    """Admin can create new family member accounts."""
-    # Only allow if already logged in (admin creates accounts)
-    if not session.get("logged_in"):
-        return redirect(url_for("login"))
+    """Public registration — anyone can create an account and get auto-logged in."""
+    # If already logged in, go to app
+    if session.get("logged_in") and request.method == "GET":
+        # Show family management page for logged-in admin
+        pass
     error = None; success = None
     if request.method == "POST":
-        u = request.form.get("username","").strip()
+        u = request.form.get("username","").strip().lower().replace(" ","_")
         p = request.form.get("password","")
-        role = request.form.get("role","member")
         full_name = request.form.get("full_name","").strip()
+        email = request.form.get("email","").strip()
         if not u or not p:
             error = "Username and password are required."
+        elif len(u) < 3:
+            error = "Username must be at least 3 characters."
         elif len(p) < 6:
             error = "Password must be at least 6 characters."
         else:
@@ -262,23 +266,33 @@ def register():
                                  (u, hash_pw(p), datetime.datetime.now().isoformat()))
                     conn.commit()
                 conn.close()
-                # Create profile with full name
-                if full_name:
-                    conn = get_db()
-                    if USE_POSTGRES and PSYCOPG2_OK:
-                        cur = conn.cursor()
-                        cur.execute("INSERT INTO user_profile (username,full_name,updated_at) VALUES (%s,%s,%s) ON CONFLICT (username) DO UPDATE SET full_name=EXCLUDED.full_name",
-                                    (u, full_name, datetime.datetime.now().isoformat()))
-                        conn.commit(); cur.close()
-                    else:
-                        conn.execute("INSERT OR REPLACE INTO user_profile (username,full_name,updated_at) VALUES (?,?,?)",
-                                     (u, full_name, datetime.datetime.now().isoformat()))
-                        conn.commit()
-                    conn.close()
-                success = f"Account created for {full_name or u}!"
+                # Create profile
+                conn = get_db()
+                if USE_POSTGRES and PSYCOPG2_OK:
+                    cur = conn.cursor()
+                    cur.execute("""INSERT INTO user_profile (username,full_name,email,updated_at)
+                                   VALUES (%s,%s,%s,%s)
+                                   ON CONFLICT (username) DO UPDATE SET
+                                   full_name=EXCLUDED.full_name, email=EXCLUDED.email""",
+                                (u, full_name, email, datetime.datetime.now().isoformat()))
+                    conn.commit(); cur.close()
+                else:
+                    conn.execute("INSERT OR REPLACE INTO user_profile (username,full_name,email,updated_at) VALUES (?,?,?,?)",
+                                 (u, full_name, email, datetime.datetime.now().isoformat()))
+                    conn.commit()
+                conn.close()
+                # Auto-login after registration
+                session.permanent = True
+                session["logged_in"] = True
+                session["username"] = u
+                return redirect(url_for("index"))
             except Exception as e:
-                error = f"Username already exists or error: {str(e)}"
-    return render_template("register.html", error=error, success=success)
+                if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+                    error = f"Username '{u}' is already taken. Please choose a different one."
+                else:
+                    error = f"Registration failed: {str(e)}"
+    return render_template("register.html", error=error, success=success,
+                           is_logged_in=session.get("logged_in", False))
 
 @app.route("/api/users", methods=["GET"])
 @login_required
@@ -696,8 +710,8 @@ def save_profile():
         cur.execute("""INSERT INTO user_profile
             (username,full_name,age,gender,weight_kg,height_cm,activity_level,health_goals,
              medical_conditions,allergies,dietary_pref,calorie_target,protein_target,
-             carb_target,fat_target,water_target,updated_at)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+             carb_target,fat_target,water_target,email,updated_at)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             ON CONFLICT (username) DO UPDATE SET
             full_name=EXCLUDED.full_name, age=EXCLUDED.age, gender=EXCLUDED.gender,
             weight_kg=EXCLUDED.weight_kg, height_cm=EXCLUDED.height_cm,
@@ -706,23 +720,25 @@ def save_profile():
             dietary_pref=EXCLUDED.dietary_pref, calorie_target=EXCLUDED.calorie_target,
             protein_target=EXCLUDED.protein_target, carb_target=EXCLUDED.carb_target,
             fat_target=EXCLUDED.fat_target, water_target=EXCLUDED.water_target,
-            updated_at=EXCLUDED.updated_at""",
+            email=EXCLUDED.email, updated_at=EXCLUDED.updated_at""",
             (username, d.get("full_name",""), age, gender, weight, height,
              activity, d.get("health_goals",""), d.get("medical_conditions",""),
              d.get("allergies",""), d.get("dietary_pref",""),
-             cal_target, protein_target, carb_target, fat_target, water_target, ts))
+             cal_target, protein_target, carb_target, fat_target, water_target,
+             d.get("email",""), ts))
         cur.close()
     else:
         conn.execute("DELETE FROM user_profile WHERE username=?", (username,))
         conn.execute("""INSERT INTO user_profile
             (username,full_name,age,gender,weight_kg,height_cm,activity_level,health_goals,
              medical_conditions,allergies,dietary_pref,calorie_target,protein_target,
-             carb_target,fat_target,water_target,updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+             carb_target,fat_target,water_target,email,updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (username, d.get("full_name",""), age, gender, weight, height,
              activity, d.get("health_goals",""), d.get("medical_conditions",""),
              d.get("allergies",""), d.get("dietary_pref",""),
-             cal_target, protein_target, carb_target, fat_target, water_target, ts))
+             cal_target, protein_target, carb_target, fat_target, water_target,
+             d.get("email",""), ts))
     conn.commit(); conn.close()
     return jsonify({"status":"ok","calorie_target":cal_target,"protein_target":protein_target,
                     "carb_target":carb_target,"fat_target":fat_target,"water_target":water_target})
@@ -1198,10 +1214,24 @@ def send_diet_email():
     from email.mime.text import MIMEText
     from email.mime.multipart import MIMEMultipart
 
-    d = request.json
-    to_email = d.get("email","").strip()
+    d = request.json or {}
+    username = session.get("username","admin")
+
+    # Get user's email from their profile
+    conn2 = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur2 = conn2.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur2.execute("SELECT email, full_name FROM user_profile WHERE username=%s",(username,))
+        prow = cur2.fetchone(); cur2.close()
+    else:
+        r2 = conn2.execute("SELECT email, full_name FROM user_profile WHERE username=?",(username,)).fetchone()
+        prow = dict(r2) if r2 else None
+    conn2.close()
+
+    # Use email from profile, fallback to request body
+    to_email = (prow.get("email","") if prow else "") or d.get("email","").strip()
     if not to_email or "@" not in to_email:
-        return jsonify({"error": "Valid email address required"}), 400
+        return jsonify({"error": "No email address found. Please add your email in My Profile → Save Profile first."}), 400
 
     smtp_host = os.environ.get("SMTP_HOST","smtp.gmail.com")
     smtp_port = int(os.environ.get("SMTP_PORT","587"))
