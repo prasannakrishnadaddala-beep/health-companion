@@ -1118,20 +1118,29 @@ async function renderProfile() {
         </div>
         <div class="card">
           <div class="card-title">BMI & Health Indicators</div>
-          ${p.weight_kg && p.height_cm ? (() => {
-            const bmi = (p.weight_kg / ((p.height_cm/100)**2)).toFixed(1);
-            const bmiCat = bmi < 18.5 ? ['Underweight','var(--color-text-info)'] : bmi < 25 ? ['Normal','var(--color-text-success)'] : bmi < 30 ? ['Overweight','var(--color-text-warning)'] : ['Obese','var(--color-text-danger)'];
-            const ideal_low = (18.5 * (p.height_cm/100)**2).toFixed(1);
-            const ideal_high = (24.9 * (p.height_cm/100)**2).toFixed(1);
-            return `<div style="text-align:center;padding:16px 0">
-              <div style="font-size:48px;font-weight:500;color:${bmiCat[1]}">${bmi}</div>
-              <div style="font-size:14px;color:${bmiCat[1]};font-weight:500">${bmiCat[0]}</div>
-              <div style="font-size:12px;color:var(--color-text-secondary);margin-top:4px">Ideal weight range: ${ideal_low}–${ideal_high} kg</div>
-            </div>`;
-          })() : '<p style="color:var(--color-text-secondary);font-size:13px">Enter weight and height to see your BMI</p>'}
+          <div id="bmiDisplay">${getBmiHtml(p)}</div>
         </div>
       </div>
     </div>`;
+}
+
+function getBmiHtml(p) {
+  if (!p.weight_kg || !p.height_cm) return '<p style="color:var(--color-text-secondary);font-size:13px">Enter weight and height to see your BMI.</p>';
+  const bmi = (p.weight_kg / Math.pow(p.height_cm/100, 2)).toFixed(1);
+  const cat = bmi < 18.5 ? ['Underweight','var(--color-text-info)'] : bmi < 25 ? ['Normal weight','var(--color-text-success)'] : bmi < 30 ? ['Overweight','var(--color-text-warning)'] : ['Obese','var(--color-text-danger)'];
+  const ilow = (18.5 * Math.pow(p.height_cm/100,2)).toFixed(1);
+  const ihigh = (24.9 * Math.pow(p.height_cm/100,2)).toFixed(1);
+  const pct = Math.min(100, Math.max(0, ((bmi-10)/30)*100)).toFixed(0);
+  return '<div style="text-align:center;padding:16px 0 8px">'
+    + '<div style="font-size:52px;font-weight:500;color:' + cat[1] + '">' + bmi + '</div>'
+    + '<div style="font-size:15px;color:' + cat[1] + ';font-weight:500;margin-bottom:4px">' + cat[0] + '</div>'
+    + '<div style="font-size:12px;color:var(--color-text-secondary)">Ideal weight: ' + ilow + ' – ' + ihigh + ' kg</div>'
+    + '<div style="background:var(--color-background-secondary);border-radius:4px;height:8px;margin:12px 0 4px">'
+    + '<div style="background:' + cat[1] + ';height:8px;border-radius:4px;width:' + pct + '%"></div></div>'
+    + '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--color-text-secondary)">'
+    + '<span>Underweight &lt;18.5</span><span>Normal 18.5–25</span><span>Obese &gt;30</span></div>'
+    + '</div>';
+}
 }
 
 async function saveProfile() {
