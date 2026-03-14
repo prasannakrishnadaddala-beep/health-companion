@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Family Accounts — HealthMate</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Syne:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #060b14; --bg2: #0d1525; --bg3: #111d33; --surface: #141f35;
+  --surface2: #1a2840; --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.12);
+  --text: #e8edf5; --text2: #8a9ab8; --text3: #4a5a78;
+  --accent: #00d4c8; --accent2: #0099ff; --danger: #ff4d6d; --success: #00e5a0; --warning: #ffb347;
+  --font: 'DM Sans', sans-serif; --display: 'Syne', sans-serif; --r: 10px; --r2: 14px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+.shell { display: flex; min-height: 100vh; }
+.sidebar { width: 220px; background: var(--bg2); border-right: 1px solid var(--border); padding: 20px 14px; }
+.logo { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+.logo-icon { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; }
+.logo-icon svg { width: 18px; height: 18px; }
+.logo-text { font-family: var(--display); font-size: 16px; font-weight: 700; }
+.back-btn { display: flex; align-items: center; gap: 8px; color: var(--text2); font-size: 13px; text-decoration: none; padding: 8px 10px; border-radius: var(--r); transition: all 0.15s; }
+.back-btn:hover { background: var(--surface); color: var(--text); }
+.main { flex: 1; padding: 32px; }
+.page-title { font-family: var(--display); font-size: 26px; font-weight: 700; margin-bottom: 4px; }
+.page-sub { font-size: 13px; color: var(--text3); margin-bottom: 28px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r2); padding: 22px 24px; }
+.card-title { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 18px; }
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 11px; font-weight: 600; color: var(--text3); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+.form-group input, .form-group select { width: 100%; padding: 9px 12px; border: 1px solid var(--border2); border-radius: var(--r); background: var(--bg3); color: var(--text); font-size: 14px; font-family: var(--font); }
+.form-group input:focus, .form-group select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,212,200,0.1); }
+.form-group select option { background: var(--surface); }
+.btn { padding: 9px 18px; border-radius: var(--r); border: none; cursor: pointer; font-size: 13px; font-family: var(--font); font-weight: 600; transition: all 0.15s; }
+.btn-primary { background: linear-gradient(135deg, var(--accent), #00b8ad); color: #001a1a; box-shadow: 0 4px 12px rgba(0,212,200,0.25); }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,212,200,0.4); }
+.btn-danger { background: rgba(255,77,109,0.1); color: var(--danger); border: 1px solid rgba(255,77,109,0.25); }
+.btn-danger:hover { background: rgba(255,77,109,0.2); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.alert { padding: 12px 14px; border-radius: var(--r); font-size: 13px; margin-bottom: 16px; }
+.alert-success { background: rgba(0,229,160,0.08); color: var(--success); border: 1px solid rgba(0,229,160,0.2); }
+.alert-error { background: rgba(255,77,109,0.08); color: var(--danger); border: 1px solid rgba(255,77,109,0.2); }
+.user-item { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--r2); margin-bottom: 8px; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; color: var(--bg); flex-shrink: 0; font-family: var(--display); }
+.user-name { font-size: 14px; font-weight: 500; }
+.user-detail { font-size: 12px; color: var(--text3); margin-top: 2px; }
+.user-actions { margin-left: auto; display: flex; gap: 6px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+.badge-admin { background: rgba(0,153,255,0.12); color: var(--accent2); border: 1px solid rgba(0,153,255,0.2); }
+.badge-member { background: rgba(255,255,255,0.05); color: var(--text3); border: 1px solid var(--border); }
+.divider { height: 1px; background: var(--border); margin: 16px 0; }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+.modal-overlay.show { display: flex; }
+.modal { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--r2); padding: 24px; width: 100%; max-width: 380px; }
+.modal-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--bg)" stroke-width="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      </div>
+      <div class="logo-text">HealthMate</div>
+    </div>
+    <a href="/" class="back-btn">← Back to App</a>
+  </div>
+
+  <div class="main">
+    <div class="page-title">Family Accounts</div>
+    <div class="page-sub">Manage accounts for all your family members — each person gets their own private health data</div>
+
+    <div class="grid">
+      <!-- Create account -->
+      <div>
+        <div class="card">
+          <div class="card-title">Add Family Member</div>
+          {% if error %}<div class="alert alert-error">❌ {{ error }}</div>{% endif %}
+          {% if success %}<div class="alert alert-success">✅ {{ success }}</div>{% endif %}
+          <form method="POST" action="/register">
+            <div class="form-group"><label>Full Name</label><input type="text" name="full_name" placeholder="e.g. Priya Sharma" required></div>
+            <div class="form-group"><label>Username</label><input type="text" name="username" placeholder="e.g. priya (no spaces)" required></div>
+            <div class="form-group"><label>Password</label><input type="password" name="password" placeholder="Min 6 characters" required></div>
+            <div class="form-group"><label>Relationship</label>
+              <select name="role">
+                <option value="wife">Wife</option>
+                <option value="husband">Husband</option>
+                <option value="child">Child</option>
+                <option value="parent">Parent</option>
+                <option value="sibling">Sibling</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Create Account</button>
+          </form>
+        </div>
+
+        <div class="card" style="margin-top:20px">
+          <div class="card-title">How it works</div>
+          <div style="font-size:13px;color:var(--text2);line-height:1.8">
+            <div style="margin-bottom:8px">👤 Each family member gets their <strong style="color:var(--text)">own private account</strong></div>
+            <div style="margin-bottom:8px">🔒 Their health data, vitals, medications are <strong style="color:var(--text)">completely separate</strong></div>
+            <div style="margin-bottom:8px">📱 They can connect their <strong style="color:var(--text)">own Google Fit & Strava</strong></div>
+            <div style="margin-bottom:8px">🤖 The AI becomes <strong style="color:var(--text)">personalized</strong> to their profile</div>
+            <div>🏥 Perfect for tracking <strong style="color:var(--text)">the whole family's health</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Members list -->
+      <div>
+        <div class="card">
+          <div class="card-title">All Members</div>
+          <div id="membersList">
+            <div style="color:var(--text3);font-size:13px">Loading…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reset password modal -->
+<div class="modal-overlay" id="resetModal">
+  <div class="modal">
+    <div class="modal-title">Reset Password</div>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="resetUsername" readonly style="opacity:0.6">
+    </div>
+    <div class="form-group">
+      <label>New Password</label>
+      <input type="password" id="resetNewPw" placeholder="Min 6 characters">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeReset()">Cancel</button>
+      <button class="btn btn-primary" onclick="doReset()">Reset Password</button>
+    </div>
+  </div>
+</div>
+
+<script>
+async function loadMembers() {
+  const res = await fetch('/api/users');
+  const users = await res.json();
+  const el = document.getElementById('membersList');
+  if (!users.length) { el.innerHTML = '<p style="color:var(--text3);font-size:13px">No accounts yet.</p>'; return; }
+  el.innerHTML = users.map(u => {
+    const initials = (u.full_name || u.username).split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const details = [u.gender, u.age ? u.age+'y' : null, u.weight_kg ? u.weight_kg+'kg' : null].filter(Boolean).join(' · ');
+    return `<div class="user-item">
+      <div class="avatar">${initials}</div>
+      <div style="flex:1">
+        <div class="user-name">${u.full_name || u.username} <span class="badge badge-member">${u.username}</span></div>
+        <div class="user-detail">${details || 'No profile yet'}</div>
+        ${u.health_goals ? `<div class="user-detail" style="margin-top:2px">🎯 ${u.health_goals}</div>` : ''}
+      </div>
+      <div class="user-actions">
+        <button class="btn btn-sm" onclick="openReset('${u.username}')">🔑</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteUser('${u.username}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openReset(username) {
+  document.getElementById('resetUsername').value = username;
+  document.getElementById('resetNewPw').value = '';
+  document.getElementById('resetModal').classList.add('show');
+}
+function closeReset() { document.getElementById('resetModal').classList.remove('show'); }
+
+async function doReset() {
+  const username = document.getElementById('resetUsername').value;
+  const pw = document.getElementById('resetNewPw').value;
+  if (pw.length < 6) { alert('Password must be at least 6 characters'); return; }
+  const res = await fetch(`/api/users/${username}/reset-password`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});
+  const d = await res.json();
+  if (d.status === 'ok') { alert(`✅ Password reset for ${username}`); closeReset(); }
+  else alert('❌ ' + d.error);
+}
+
+async function deleteUser(username) {
+  if (!confirm(`Delete account for "${username}"? All their health data will be permanently deleted.`)) return;
+  const res = await fetch(`/api/users/${username}/delete`, {method:'POST'});
+  const d = await res.json();
+  if (d.status === 'ok') loadMembers();
+  else alert('❌ ' + d.error);
+}
+
+loadMembers();
+</script>
+</body>
+</html>

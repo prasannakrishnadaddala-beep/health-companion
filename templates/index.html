@@ -100,6 +100,16 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 .status-dot { display: flex; align-items: center; gap: 6px; color: var(--text3); }
 .dot-pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success); animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+@keyframes heartbeat { 0%,100%{transform:scale(1)} 15%{transform:scale(1.18)} 30%{transform:scale(1)} 45%{transform:scale(1.1)} 60%{transform:scale(1)} }
+@keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+@keyframes countUp { from{opacity:0;transform:scale(0.8)} to{opacity:1;transform:scale(1)} }
+.heartbeat-anim { animation: heartbeat 1.4s ease infinite; display:inline-block; }
+.stat-card { animation: fadeIn 0.4s ease both; }
+.stat-card:nth-child(1){animation-delay:0.05s}
+.stat-card:nth-child(2){animation-delay:0.1s}
+.stat-card:nth-child(3){animation-delay:0.15s}
+.stat-card:nth-child(4){animation-delay:0.2s}
+.stat-value { animation: countUp 0.5s ease both; }
 
 /* Page header */
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
@@ -346,13 +356,18 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
       <div class="nav-item" data-tab="profile" onclick="switchTab('profile')">
         <div class="nav-icon">👤</div><span>My Profile</span>
       </div>
-    </div>
+      <div class="nav-item" onclick="window.location='/register'">
+        <div class="nav-icon">👨‍👩‍👧</div><span>Family Accounts</span>
+      </div>
 
     <div class="sidebar-footer">
       <div class="status-dot">
         <div class="dot-pulse"></div>
         <span id="apiStatusDot" style="font-size:11px;color:var(--text3)">Connected</span>
       </div>
+      <a href="/logout" style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;color:var(--text3);text-decoration:none;padding:6px 0;transition:color 0.15s" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text3)'">
+        <span>⏻</span> Sign out
+      </a>
     </div>
   </div>
 
@@ -514,12 +529,51 @@ async function loadVitals() {
     const hrs = (last.heart_rate >= 60 && last.heart_rate <= 100) ? 'ok' : 'warn';
     const ts = last.temperature <= 99 ? 'ok' : last.temperature <= 100.4 ? 'warn' : 'err';
     const bpLabel = last.bp_sys && last.bp_dia ? `${last.bp_sys}/${last.bp_dia}` : '—';
+    const lastTime = last.timestamp ? `Updated ${last.timestamp.slice(11,16)}` : '';
     topEl.innerHTML = `<div class="grid-4" style="margin-bottom:20px">
-      <div class="stat-card"><div class="stat-label">Oxygen</div><div class="stat-value" style="color:var(--accent)">${last.oxygen || '—'}</div><div class="stat-unit">%</div><span class="stat-badge badge-${o2s}">${o2s==='ok'?'Normal':o2s==='warn'?'Low':'Critical'}</span></div>
-      <div class="stat-card"><div class="stat-label">Heart Rate</div><div class="stat-value" style="color:var(--danger)">${last.heart_rate || '—'}</div><div class="stat-unit">bpm</div><span class="stat-badge badge-${hrs}">${hrs==='ok'?'Normal':'Check'}</span></div>
-      <div class="stat-card"><div class="stat-label">Blood Pressure</div><div class="stat-value" style="font-size:20px;color:var(--success)">${bpLabel}</div><div class="stat-unit">mmHg</div><span class="stat-badge badge-ok">Normal</span></div>
-      <div class="stat-card"><div class="stat-label">Temperature</div><div class="stat-value" style="color:var(--warning)">${last.temperature || '—'}</div><div class="stat-unit">°F</div><span class="stat-badge badge-${ts}">${ts==='ok'?'Normal':ts==='warn'?'Mild fever':'High fever'}</span></div>
+      <div class="stat-card c-teal">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="stat-label">O₂ Saturation</div>
+          <div style="font-size:18px">🫁</div>
+        </div>
+        <div class="stat-value" style="color:var(--accent);font-size:42px">${last.oxygen || '—'}</div>
+        <div class="stat-unit">percent</div>
+        <span class="stat-badge badge-${o2s}">${o2s==='ok'?'✓ Normal':o2s==='warn'?'⚠ Low':'⛔ Critical'}</span>
+        <div style="font-size:10px;color:var(--text3);margin-top:6px">${lastTime}</div>
+      </div>
+      <div class="stat-card c-red">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="stat-label">Heart Rate</div>
+          <div class="heartbeat-anim" style="font-size:18px">❤️</div>
+        </div>
+        <div class="stat-value" style="color:var(--danger);font-size:42px">${last.heart_rate || '—'}</div>
+        <div class="stat-unit">bpm</div>
+        <span class="stat-badge badge-${hrs}">${hrs==='ok'?'✓ Normal':'⚠ Check'}</span>
+        <div style="font-size:10px;color:var(--text3);margin-top:6px">${lastTime}</div>
+      </div>
+      <div class="stat-card c-blue">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="stat-label">Blood Pressure</div>
+          <div style="font-size:18px">🩸</div>
+        </div>
+        <div class="stat-value" style="color:var(--accent2);font-size:${bpLabel.length > 5 ? '24px' : '36px'}">${bpLabel}</div>
+        <div class="stat-unit">mmHg (sys/dia)</div>
+        <span class="stat-badge badge-ok">${last.bp_sys ? '✓ Normal' : '— No data'}</span>
+        <div style="font-size:10px;color:var(--text3);margin-top:6px">${lastTime}</div>
+      </div>
+      <div class="stat-card c-yellow">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="stat-label">Temperature</div>
+          <div style="font-size:18px">🌡️</div>
+        </div>
+        <div class="stat-value" style="color:var(--warning);font-size:42px">${last.temperature || '—'}</div>
+        <div class="stat-unit">°F</div>
+        <span class="stat-badge badge-${ts}">${ts==='ok'?'✓ Normal':ts==='warn'?'⚠ Mild fever':'⛔ High fever'}</span>
+        <div style="font-size:10px;color:var(--text3);margin-top:6px">${lastTime}</div>
+      </div>
     </div>`;
+  } else {
+    topEl.innerHTML = `<div class="alert alert-info" style="margin-bottom:20px">No vitals recorded yet. Log your first reading below or sync from your watch.</div>`;
   }
 
   // Chart

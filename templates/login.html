@@ -3,55 +3,53 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Health Companion — Sign In</title>
+<title>HealthMate — Sign In</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Syne:wght@700&display=swap" rel="stylesheet">
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f4f8; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-.card { background: white; border-radius: 16px; padding: 40px; width: 100%; max-width: 380px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
-.logo { text-align: center; margin-bottom: 28px; }
-.logo-icon { width: 56px; height: 56px; background: #eff6ff; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px; }
-.logo-icon svg { width: 28px; height: 28px; }
-h1 { font-size: 22px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
-.sub { font-size: 14px; color: #6b7280; }
-.form-group { margin-bottom: 16px; }
-label { display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px; }
-input { width: 100%; padding: 10px 14px; border: 1.5px solid #e5e7eb; border-radius: 8px; font-size: 14px; font-family: inherit; color: #1a1a1a; transition: border-color 0.15s; }
-input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
-.btn { width: 100%; padding: 11px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.15s; margin-top: 8px; }
-.btn:hover { background: #1d4ed8; }
-.error { background: #fef2f2; border: 1px solid #fca5a5; color: #dc2626; border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 16px; }
-.footer { text-align: center; margin-top: 20px; font-size: 12px; color: #9ca3af; }
+:root {
+  --bg:#060b14;--bg2:#0d1525;--bg3:#111d33;--surface:#141f35;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --text:#e8edf5;--text2:#8a9ab8;--text3:#4a5a78;
+  --accent:#00d4c8;--accent2:#0099ff;--danger:#ff4d6d;
+  --font:'DM Sans',sans-serif;--display:'Syne',sans-serif;--r:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.wrap{width:100%;max-width:400px;}
+.logo-area{text-align:center;margin-bottom:32px;}
+.logo-icon{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px;box-shadow:0 8px 24px rgba(0,212,200,0.3);}
+.logo-icon svg{width:28px;height:28px;}
+.logo-title{font-family:var(--display);font-size:28px;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.logo-sub{font-size:14px;color:var(--text3);margin-top:4px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,0.5);}
+.form-group{margin-bottom:16px;}
+label{display:block;font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em;}
+input{width:100%;padding:11px 14px;border:1px solid var(--border2);border-radius:var(--r);background:var(--bg3);color:var(--text);font-size:14px;font-family:var(--font);transition:all 0.15s;}
+input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,212,200,0.12);}
+.btn{width:100%;padding:12px;background:linear-gradient(135deg,var(--accent),#00b8ad);color:#001a1a;border:none;border-radius:var(--r);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font);transition:all 0.15s;margin-top:8px;box-shadow:0 4px 16px rgba(0,212,200,0.3);}
+.btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,212,200,0.45);}
+.error{background:rgba(255,77,109,0.08);border:1px solid rgba(255,77,109,0.25);color:var(--danger);border-radius:var(--r);padding:10px 14px;font-size:13px;margin-bottom:16px;}
+.footer{text-align:center;margin-top:20px;font-size:12px;color:var(--text3);}
 </style>
 </head>
 <body>
-<div class="card">
-  <div class="logo">
+<div class="wrap">
+  <div class="logo-area">
     <div class="logo-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--bg)" stroke-width="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
     </div>
-    <h1>Health Companion</h1>
-    <p class="sub">Your personal AI health assistant</p>
+    <div class="logo-title">HealthMate</div>
+    <div class="logo-sub">Your personal AI health companion</div>
   </div>
-
-  {% if error %}
-  <div class="error">{{ error }}</div>
-  {% endif %}
-
-  <form method="POST" action="/login">
-    <div class="form-group">
-      <label>Username</label>
-      <input type="text" name="username" placeholder="Enter username" autocomplete="username" required>
-    </div>
-    <div class="form-group">
-      <label>Password</label>
-      <input type="password" name="password" placeholder="Enter password" autocomplete="current-password" required>
-    </div>
-    <button type="submit" class="btn">Sign In →</button>
-  </form>
-
-  <div class="footer">
-    Private & secure · All data encrypted at rest
+  <div class="card">
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <form method="POST" action="/login">
+      <div class="form-group"><label>Username</label><input type="text" name="username" placeholder="Enter your username" autocomplete="username" required autofocus></div>
+      <div class="form-group"><label>Password</label><input type="password" name="password" placeholder="Enter your password" autocomplete="current-password" required></div>
+      <button type="submit" class="btn">Sign In →</button>
+    </form>
   </div>
+  <div class="footer">Private & secure · All health data encrypted</div>
 </div>
 </body>
 </html>
