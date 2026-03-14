@@ -654,10 +654,11 @@ def gf_callback():
         return redirect("/login")
 
     try:
-        token_dict = gfit.exchange_code(code, get_redirect_uri())
+        redirect_uri = get_redirect_uri()
+        print(f"[gfit callback] username={username} redirect_uri={redirect_uri} code_len={len(code)}")
+        token_dict = gfit.exchange_code(code, redirect_uri)
         if token_dict:
             save_user_token(username, token_dict)
-            # Restore session if it was lost
             session.permanent = True
             session["logged_in"] = True
             session["username"] = username
@@ -666,7 +667,7 @@ def gf_callback():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        err = str(e).replace(" ","_")[:80]
+        err = str(e).replace(" ","_")[:120]
         return redirect(f"/googlefit-setup?error={err}")
 
 @app.route("/api/googlefit/disconnect", methods=["POST"])

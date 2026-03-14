@@ -63,8 +63,11 @@ def exchange_code(code, redirect_uri):
     config = get_client_config()
     if not config:
         return None
-    import urllib.request, urllib.parse
-    # Direct token exchange via HTTP POST — no flow state needed
+    import urllib.request, urllib.parse, urllib.error
+
+    # Strip any trailing slash to ensure exact match
+    redirect_uri = redirect_uri.rstrip("/")
+
     data = urllib.parse.urlencode({
         "code": code,
         "client_id": config["web"]["client_id"],
@@ -72,6 +75,7 @@ def exchange_code(code, redirect_uri):
         "redirect_uri": redirect_uri,
         "grant_type": "authorization_code",
     }).encode()
+
     req = urllib.request.Request(
         "https://oauth2.googleapis.com/token",
         data=data,
@@ -92,6 +96,9 @@ def exchange_code(code, redirect_uri):
                 datetime.timedelta(seconds=token_data.get("expires_in", 3600))
             ).isoformat(),
         }
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()
+        raise Exception(f"Google token error: {body}")
     except Exception as e:
         raise Exception(f"Token exchange failed: {str(e)}")
 
