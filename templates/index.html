@@ -2,8 +2,40 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>HealthMate — Personal Health Companion</title>
+
+<!-- PWA Manifest -->
+<link rel="manifest" href="/static/manifest.json">
+
+<!-- Theme & status bar -->
+<meta name="theme-color" content="#00d4c8">
+<meta name="msapplication-TileColor" content="#060b14">
+<meta name="msapplication-TileImage" content="/static/icons/icon-144x144.png">
+
+<!-- iOS PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="HealthMate">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="152x152" href="/static/icons/icon-152x152.png">
+<link rel="apple-touch-icon" sizes="192x192" href="/static/icons/icon-192x192.png">
+
+<!-- Favicon -->
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192x192.png">
+<link rel="shortcut icon" href="/static/favicon.ico">
+
+<!-- SEO / share -->
+<meta name="description" content="Your personal AI health companion — track vitals, medications, diet and appointments.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="HealthMate">
+
+<!-- Safe-area insets for iPhone notch/Dynamic Island -->
+<style>
+  body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+  .sidebar { padding-top: max(16px, env(safe-area-inset-top)); }
+</style>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Syne:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -1010,7 +1042,7 @@ async function loadDiet() {
       }).join('')}
     </div>
     <!-- Edit Diet Modal -->
-    <div id="editDietModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)" onclick="if(event.target===this)closeEditDiet()">
+    <div id="editDietModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(4px)" onclick="if(event.target===this)closeEditDiet()">
       <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:24px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
           <div style="font-size:16px;font-weight:600;color:var(--text)">✏️ Edit Meal Entry</div>
@@ -1541,10 +1573,67 @@ async function showDietAnalysis() {
 async function renderProfile() {
   const res = await fetch('/api/profile');
   const p = await res.json();
+
+  // Fetch download info
+  let dlInfo = {android:{available:false},ios:{available:false},pwa:{available:true}};
+  try { const dr = await fetch('/api/app-download-info'); dlInfo = await dr.json(); } catch(_) {}
+
   document.getElementById('mainContent').innerHTML = `
     <div class="page-header">
-      <div><div class="page-title">My Health Profile</div><div class="page-sub">Personal details for personalized AI nutrition & health analysis</div></div>
+      <div><div class="page-title">My Health Profile</div><div class="page-sub">Your personal health identity & preferences</div></div>
     </div>
+
+    <!-- Patient ID Card -->
+    <div style="margin-bottom:20px;background:linear-gradient(135deg,#0d1525,#111d33);border:1px solid rgba(0,212,200,0.25);border-radius:16px;padding:20px;position:relative;overflow:hidden">
+      <div style="position:absolute;top:-30px;right:-30px;width:140px;height:140px;background:radial-gradient(circle,rgba(0,212,200,0.08),transparent 70%);border-radius:50%"></div>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div style="width:54px;height:54px;border-radius:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">🏥</div>
+          <div>
+            <div style="font-size:11px;color:var(--text3);font-weight:600;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:3px">HealthMate Patient ID</div>
+            <div style="font-size:22px;font-weight:700;color:var(--accent);font-family:var(--mono);letter-spacing:0.04em">${p.patient_id || 'Generating…'}</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px">${p.full_name || 'Complete your profile below'}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          ${p.blood_group ? `<div style="background:rgba(255,77,109,0.12);border:1px solid rgba(255,77,109,0.3);border-radius:10px;padding:8px 14px;text-align:center"><div style="font-size:18px;font-weight:700;color:#ff4d6d;font-family:var(--mono)">${p.blood_group}</div><div style="font-size:10px;color:var(--text3)">Blood Group</div></div>` : ""}
+          ${p.age ? `<div style="background:rgba(0,212,200,0.08);border:1px solid rgba(0,212,200,0.2);border-radius:10px;padding:8px 14px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--accent)">${p.age}</div><div style="font-size:10px;color:var(--text3)">Age</div></div>` : ""}
+          ${p.gender ? `<div style="background:rgba(124,111,255,0.08);border:1px solid rgba(124,111,255,0.2);border-radius:10px;padding:8px 14px;text-align:center"><div style="font-size:16px;font-weight:600;color:var(--accent3)">${p.gender === "female" ? "♀ Female" : "♂ Male"}</div><div style="font-size:10px;color:var(--text3)">Gender</div></div>` : ""}
+        </div>
+      </div>
+      ${(p.medical_conditions || p.allergies) ? `<div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:12px;flex-wrap:wrap">${p.medical_conditions ? `<div style="font-size:12px;color:var(--text3)">⚕️ <span style="color:var(--text2)">${p.medical_conditions}</span></div>` : ""}${p.allergies ? `<div style="font-size:12px;color:var(--text3)">⚠️ Allergies: <span style="color:var(--warning)">${p.allergies}</span></div>` : ""}</div>` : ""}
+    </div>
+
+    <!-- AI Patient Summary -->
+    <div id="patientCardSection" style="margin-bottom:20px"></div>
+
+    <!-- App Download -->
+    <div style="margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px">
+      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">📲 Get the HealthMate App</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:14px">Install on your phone for the best offline experience</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <a href="/download/android" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#0d1525;border:1px solid rgba(0,229,160,0.3);border-radius:12px;text-decoration:none;flex:1;min-width:160px;transition:all 0.15s" onmouseover="this.style.background='rgba(0,229,160,0.08)'" onmouseout="this.style.background='#0d1525'">
+          <div style="font-size:26px">🤖</div>
+          <div><div style="font-size:11px;color:var(--text3)">Download for</div><div style="font-size:14px;font-weight:700;color:#00e5a0">Android APK</div><div style="font-size:10px;color:var(--text3)">Free · Direct install</div></div>
+        </a>
+        <div onclick="document.getElementById('iosBox').style.display=document.getElementById('iosBox').style.display==='none'?'block':'none'" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#0d1525;border:1px solid rgba(0,153,255,0.3);border-radius:12px;cursor:pointer;flex:1;min-width:160px;transition:all 0.15s" onmouseover="this.style.background='rgba(0,153,255,0.08)'" onmouseout="this.style.background='#0d1525'">
+          <div style="font-size:26px">🍎</div>
+          <div><div style="font-size:11px;color:var(--text3)">Install on</div><div style="font-size:14px;font-weight:700;color:var(--accent2)">iPhone / iPad</div><div style="font-size:10px;color:var(--text3)">Add to Home Screen</div></div>
+        </div>
+        <div onclick="typeof installPwa!=='undefined'?installPwa():document.getElementById('iosBox').style.display='block'" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#0d1525;border:1px solid rgba(124,111,255,0.3);border-radius:12px;cursor:pointer;flex:1;min-width:160px;transition:all 0.15s" onmouseover="this.style.background='rgba(124,111,255,0.08)'" onmouseout="this.style.background='#0d1525'">
+          <div style="font-size:26px">🌐</div>
+          <div><div style="font-size:11px;color:var(--text3)">Any device</div><div style="font-size:14px;font-weight:700;color:var(--accent3)">Web App (PWA)</div><div style="font-size:10px;color:var(--text3)">Offline · No install needed</div></div>
+        </div>
+      </div>
+      <div id="iosBox" style="display:none;margin-top:12px;padding:12px 14px;background:rgba(0,153,255,0.06);border:1px solid rgba(0,153,255,0.2);border-radius:10px;font-size:13px;color:var(--text2);line-height:1.8">
+        <strong style="color:var(--accent2)">Install on iPhone/iPad:</strong><br>
+        1. Open this page in <strong>Safari</strong><br>
+        2. Tap the <strong>Share</strong> button ⬆️ at the bottom of Safari<br>
+        3. Tap <strong>"Add to Home Screen"</strong> ➕<br>
+        4. Tap <strong>Add</strong> — HealthMate appears as an app on your home screen!
+      </div>
+    </div>
+
     <div class="grid-2">
       <div>
         <div class="card" style="margin-bottom:16px">
@@ -1561,12 +1650,10 @@ async function renderProfile() {
                 <option value="male" ${p.gender==='male'?'selected':''}>Male</option>
               </select>
             </div>
-            <div class="form-group"><label>Dietary Preference</label>
-              <select id="p-diet">
-                <option value="vegetarian" ${p.dietary_pref==='vegetarian'?'selected':''}>Vegetarian</option>
-                <option value="non-vegetarian" ${p.dietary_pref==='non-vegetarian'?'selected':''}>Non-Vegetarian</option>
-                <option value="vegan" ${p.dietary_pref==='vegan'?'selected':''}>Vegan</option>
-                <option value="eggetarian" ${p.dietary_pref==='eggetarian'?'selected':''}>Eggetarian</option>
+            <div class="form-group"><label>Blood Group</label>
+              <select id="p-blood">
+                <option value="" ${!p.blood_group?'selected':''}>— Select —</option>
+                ${['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(bg => `<option value="${bg}" ${p.blood_group===bg?'selected':''}>${bg}</option>`).join('')}
               </select>
             </div>
           </div>
@@ -1574,10 +1661,18 @@ async function renderProfile() {
             <div class="form-group"><label>Weight (kg)</label><input type="number" id="p-weight" step="0.1" value="${p.weight_kg||''}" placeholder="e.g. 58"></div>
             <div class="form-group"><label>Height (cm)</label><input type="number" id="p-height" value="${p.height_cm||''}" placeholder="e.g. 162"></div>
           </div>
+          <div class="form-group"><label>Dietary Preference</label>
+            <select id="p-diet">
+              <option value="vegetarian" ${p.dietary_pref==='vegetarian'?'selected':''}>Vegetarian</option>
+              <option value="non-vegetarian" ${p.dietary_pref==='non-vegetarian'?'selected':''}>Non-Vegetarian</option>
+              <option value="vegan" ${p.dietary_pref==='vegan'?'selected':''}>Vegan</option>
+              <option value="eggetarian" ${p.dietary_pref==='eggetarian'?'selected':''}>Eggetarian</option>
+            </select>
+          </div>
           <div class="form-group"><label>Activity Level</label>
             <select id="p-activity">
               <option value="sedentary" ${p.activity_level==='sedentary'?'selected':''}>Sedentary (desk job, no exercise)</option>
-              <option value="light" ${p.activity_level==='light'?'selected':''}>Light (1-2 days/week exercise)</option>
+              <option value="light" ${p.activity_level==='light'?'selected':''}>Light (1-2 days/week)</option>
               <option value="moderate" ${p.activity_level==='moderate'?'selected':''}>Moderate (3-5 days/week)</option>
               <option value="active" ${p.activity_level==='active'?'selected':''}>Active (6-7 days/week)</option>
               <option value="very_active" ${p.activity_level==='very_active'?'selected':''}>Very Active (athlete)</option>
@@ -1586,16 +1681,10 @@ async function renderProfile() {
         </div>
         <div class="card">
           <div class="card-title">Health Information</div>
-          <div class="form-group"><label>Health Goals</label>
-            <input type="text" id="p-goals" value="${p.health_goals||''}" placeholder="e.g. Lose weight, manage diabetes, build strength">
-          </div>
-          <div class="form-group"><label>Medical Conditions</label>
-            <input type="text" id="p-conditions" value="${p.medical_conditions||''}" placeholder="e.g. Diabetes, PCOS, Thyroid, Hypertension">
-          </div>
-          <div class="form-group"><label>Food Allergies / Intolerances</label>
-            <input type="text" id="p-allergies" value="${p.allergies||''}" placeholder="e.g. Lactose intolerant, Gluten free, Nut allergy">
-          </div>
-          <button class="btn btn-primary" onclick="saveProfile()">Save Profile & Calculate Targets</button>
+          <div class="form-group"><label>Health Goals</label><input type="text" id="p-goals" value="${p.health_goals||''}" placeholder="e.g. Lose weight, manage diabetes"></div>
+          <div class="form-group"><label>Medical Conditions</label><input type="text" id="p-conditions" value="${p.medical_conditions||''}" placeholder="e.g. Diabetes, PCOS, Hypertension"></div>
+          <div class="form-group"><label>Food Allergies / Intolerances</label><input type="text" id="p-allergies" value="${p.allergies||''}" placeholder="e.g. Lactose intolerant, Nut allergy"></div>
+          <button class="btn btn-primary" onclick="saveProfile()" style="width:100%">💾 Save Profile & Calculate Targets</button>
         </div>
       </div>
       <div>
@@ -1604,22 +1693,11 @@ async function renderProfile() {
           <div id="targetsDisplay">
             ${p.calorie_target ? `
             <div class="grid-2" style="gap:10px">
-              ${[['🔥 Calories',p.calorie_target,'kcal/day','var(--color-text-info)'],
-                 ['💪 Protein',p.protein_target,'g/day','var(--color-text-success)'],
-                 ['🌾 Carbs',p.carb_target,'g/day','var(--color-text-warning)'],
-                 ['🥑 Fat',p.fat_target,'g/day','var(--color-text-danger)'],
-                 ['🥤 Water',p.water_target,'ml/day','#0d9488'],
-                 ['🧬 Fiber','25-30','g/day','#639922']
-              ].map(([n,v,u,c])=>`<div style="background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px;text-align:center">
-                <div style="font-size:20px;font-weight:500;color:${c}">${v}</div>
-                <div style="font-size:11px;color:var(--color-text-secondary)">${u}</div>
-                <div style="font-size:12px;font-weight:500;margin-top:2px">${n}</div>
-              </div>`).join('')}
+              ${[['🔥 Calories',p.calorie_target,'kcal/day','var(--accent)'],['💪 Protein',p.protein_target,'g/day','var(--success)'],['🌾 Carbs',p.carb_target,'g/day','var(--warning)'],['🥑 Fat',p.fat_target,'g/day','var(--danger)'],['🥤 Water',p.water_target,'ml/day','#0d9488'],['🧬 Fiber','25-30','g/day','#639922']].map(([n,v,u,c])=>`<div style="background:var(--bg3);border-radius:var(--r);padding:12px;text-align:center;border:1px solid var(--border)"><div style="font-size:20px;font-weight:700;color:${c};font-family:var(--mono)">${v}</div><div style="font-size:10px;color:var(--text3)">${u}</div><div style="font-size:11px;font-weight:500;margin-top:2px;color:var(--text2)">${n}</div></div>`).join('')}
             </div>
-            <div style="margin-top:14px;padding:12px;background:rgba(0,212,200,0.06);border-radius:var(--border-radius-md);font-size:13px;color:var(--accent)">
-              💡 Targets calculated using Mifflin-St Jeor formula based on your age, weight, height and activity level
-            </div>
-            ${p.email ? `<div style="margin-top:10px;padding:10px 12px;background:rgba(0,229,160,0.06);border:1px solid rgba(0,229,160,0.15);border-radius:var(--border-radius-md);font-size:13px;color:var(--success)">📧 Diet reports will be sent to: <strong>${p.email}</strong></div>` : `<div style="margin-top:10px;padding:10px 12px;background:rgba(255,179,71,0.06);border:1px solid rgba(255,179,71,0.15);border-radius:var(--border-radius-md);font-size:13px;color:var(--warning)">⚠️ Add your email above so diet reports reach your inbox</div>`}` : `<p style="color:var(--color-text-secondary);font-size:14px">Fill in your profile details and save to see your personalized daily nutrition targets calculated by AI.</p>`}
+            <div style="margin-top:12px;padding:10px 12px;background:rgba(0,212,200,0.06);border-radius:var(--r);font-size:12px;color:var(--accent)">💡 Targets calculated using Mifflin-St Jeor formula</div>
+            ${p.email ? `<div style="margin-top:8px;padding:10px 12px;background:rgba(0,229,160,0.06);border:1px solid rgba(0,229,160,0.15);border-radius:var(--r);font-size:12px;color:var(--success)">📧 Diet reports → <strong>${p.email}</strong></div>` : ""}
+            ` : `<p style="color:var(--text3);font-size:13px">Save your profile to see personalized targets.</p>`}
           </div>
         </div>
         <div class="card">
@@ -1628,7 +1706,41 @@ async function renderProfile() {
         </div>
       </div>
     </div>`;
+
+  loadPatientCard();
 }
+
+function loadPatientCard() {
+  const el = document.getElementById('patientCardSection');
+  if (!el) return;
+  fetch('/api/patient-card').then(r=>r.json()).then(data => {
+    const card = data.patient_card;
+    if (!card) {
+      el.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px"><div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px">🧬 AI Patient Summary</div><p style="font-size:12px;color:var(--text3);margin:0">Upload health records (lab reports, prescriptions, discharge summaries) and AI will automatically build your patient summary card here.</p></div>`;
+      return;
+    }
+    el.innerHTML = `
+    <div style="background:var(--surface);border:1px solid rgba(0,212,200,0.2);border-radius:14px;padding:18px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:14px">🧬</div>
+          <span style="font-size:14px;font-weight:600;color:var(--text)">AI Patient Summary</span>
+        </div>
+        <span style="font-size:11px;color:var(--text3)">From ${card.document_count||1} document${(card.document_count||1)>1?'s':''} · ${card.last_updated||''}</span>
+      </div>
+      ${card.summary ? `<div style="padding:12px;background:rgba(0,212,200,0.05);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;margin-bottom:12px;font-size:13px;color:var(--text2);line-height:1.6">${card.summary}</div>` : ''}
+      <div class="grid-2" style="gap:10px">
+        ${card.conditions_identified?.length ? `<div style="background:var(--bg3);border-radius:10px;padding:12px;border:1px solid var(--border)"><div style="font-size:11px;font-weight:600;color:var(--warning);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">⚕️ Conditions</div>${card.conditions_identified.map(c=>`<div style="font-size:12px;color:var(--text2);padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04)">${c}</div>`).join('')}</div>` : ''}
+        ${card.medications_mentioned?.length ? `<div style="background:var(--bg3);border-radius:10px;padding:12px;border:1px solid var(--border)"><div style="font-size:11px;font-weight:600;color:var(--accent2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">💊 Medications</div>${card.medications_mentioned.map(m=>`<div style="font-size:12px;color:var(--text2);padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04)">${m}</div>`).join('')}</div>` : ''}
+        ${card.abnormal_findings?.length ? `<div style="background:var(--bg3);border-radius:10px;padding:12px;border:1px solid var(--border)"><div style="font-size:11px;font-weight:600;color:var(--danger);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">⚠️ Abnormal Findings</div>${card.abnormal_findings.map(f=>`<div style="font-size:12px;color:var(--text2);padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04)">${f}</div>`).join('')}</div>` : ''}
+        ${card.recommended_followups?.length ? `<div style="background:var(--bg3);border-radius:10px;padding:12px;border:1px solid var(--border)"><div style="font-size:11px;font-weight:600;color:var(--success);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">✅ Follow-ups</div>${card.recommended_followups.map(f=>`<div style="font-size:12px;color:var(--text2);padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04)">${f}</div>`).join('')}</div>` : ''}
+      </div>
+      ${card.risk_factors?.length ? `<div style="margin-top:10px;padding:10px 12px;background:rgba(255,179,71,0.06);border:1px solid rgba(255,179,71,0.15);border-radius:8px"><span style="font-size:11px;font-weight:600;color:var(--warning)">⚡ Risk Factors: </span><span style="font-size:12px;color:var(--text2)">${card.risk_factors.join(' · ')}</span></div>` : ''}
+      ${card.allergies_noted?.length ? `<div style="margin-top:8px;padding:10px 12px;background:rgba(255,77,109,0.06);border:1px solid rgba(255,77,109,0.15);border-radius:8px"><span style="font-size:11px;font-weight:600;color:var(--danger)">🚫 Allergies: </span><span style="font-size:12px;color:var(--text2)">${card.allergies_noted.join(', ')}</span></div>` : ''}
+    </div>`;
+  }).catch(()=>{});
+}
+
 
 function getBmiHtml(p) {
   if (!p.weight_kg || !p.height_cm) return '<p style="color:var(--color-text-secondary);font-size:13px">Enter weight and height to see your BMI.</p>';
@@ -1654,6 +1766,7 @@ async function saveProfile() {
     email: document.getElementById('p-email').value,
     age: parseInt(document.getElementById('p-age').value)||0,
     gender: document.getElementById('p-gender').value,
+    blood_group: document.getElementById('p-blood').value,
     weight_kg: parseFloat(document.getElementById('p-weight').value)||0,
     height_cm: parseFloat(document.getElementById('p-height').value)||0,
     activity_level: document.getElementById('p-activity').value,
@@ -1665,7 +1778,7 @@ async function saveProfile() {
   const res = await fetch('/api/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
   const result = await res.json();
   if (result.status === 'ok') {
-    alert(`✅ Profile saved!\n\nYour daily targets:\n🔥 ${result.calorie_target} kcal\n💪 ${result.protein_target}g protein\n🌾 ${result.carb_target}g carbs\n🥑 ${result.fat_target}g fat\n🥤 ${result.water_target}ml water`);
+    showToast('Profile saved! Targets updated ✓', 'ok');
     renderProfile();
   }
 }
@@ -2012,6 +2125,132 @@ window.addEventListener('load', () => {
   checkApiStatus();
 });
 
+</script>
+
+<!-- ── PWA: Service Worker + Install Prompt ─────────────────────────── -->
+<script>
+// Register service worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/static/sw.js')
+      .then(reg => {
+        console.log('[SW] Registered:', reg.scope);
+        // Check for updates every 60s
+        setInterval(() => reg.update(), 60000);
+        reg.addEventListener('updatefound', () => {
+          const newSW = reg.installing;
+          newSW.addEventListener('statechange', () => {
+            if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+              showPwaToast('App updated! Refresh for the latest version.', 'update');
+            }
+          });
+        });
+      })
+      .catch(err => console.warn('[SW] Registration failed:', err));
+  });
+}
+
+// Install prompt (Android Chrome "Add to Home Screen")
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Show install banner after 3 seconds if not already installed
+  setTimeout(() => {
+    if (deferredPrompt && !window.matchMedia('(display-mode: standalone)').matches) {
+      showInstallBanner();
+    }
+  }, 3000);
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  const banner = document.getElementById('pwaInstallBanner');
+  if (banner) banner.remove();
+  showPwaToast('HealthMate installed! 🎉', 'ok');
+});
+
+function showInstallBanner() {
+  if (document.getElementById('pwaInstallBanner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'pwaInstallBanner';
+  banner.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;flex:1">
+      <img src="/static/icons/icon-72x72.png" style="width:40px;height:40px;border-radius:10px;flex-shrink:0">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:#e8edf5">Add HealthMate to Home Screen</div>
+        <div style="font-size:11px;color:#8a9ab8;margin-top:1px">Works offline · No app store needed</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0">
+      <button onclick="installPwa()" style="padding:8px 16px;background:linear-gradient(135deg,#00d4c8,#00b8ad);color:#001a1a;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Install</button>
+      <button onclick="document.getElementById('pwaInstallBanner').remove()" style="padding:8px 10px;background:transparent;border:1px solid rgba(255,255,255,0.1);color:#8a9ab8;border-radius:8px;font-size:13px;cursor:pointer">✕</button>
+    </div>`;
+  banner.style.cssText = `
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    background:#141f35;border:1px solid rgba(0,212,200,0.2);border-radius:16px;
+    padding:14px 16px;display:flex;align-items:center;gap:12px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.5);z-index:99999;
+    width:calc(100% - 32px);max-width:420px;
+    animation:slideUp 0.3s ease;
+  `;
+  // Add animation keyframe if not present
+  if (!document.getElementById('pwaStyle')) {
+    const st = document.createElement('style');
+    st.id = 'pwaStyle';
+    st.textContent = '@keyframes slideUp{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}';
+    document.head.appendChild(st);
+  }
+  document.body.appendChild(banner);
+}
+
+async function installPwa() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  const banner = document.getElementById('pwaInstallBanner');
+  if (banner) banner.remove();
+}
+
+function showPwaToast(msg, type) {
+  if (typeof showToast === 'function') {
+    showToast(msg, type);
+  }
+}
+
+// iOS: show "Add to Home Screen" instructions (Safari doesn't support beforeinstallprompt)
+const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isInStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+if (isIos && !isInStandalone) {
+  setTimeout(() => {
+    if (document.getElementById('pwaInstallBanner') || document.getElementById('iosInstallTip')) return;
+    const tip = document.createElement('div');
+    tip.id = 'iosInstallTip';
+    tip.innerHTML = `
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <img src="/static/icons/icon-72x72.png" style="width:40px;height:40px;border-radius:10px;flex-shrink:0;margin-top:2px">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600;color:#e8edf5;margin-bottom:4px">Install HealthMate on your iPhone</div>
+          <div style="font-size:12px;color:#8a9ab8;line-height:1.6">
+            Tap <strong style="color:#00d4c8">Share</strong> <span style="font-size:14px">⬆️</span> then
+            <strong style="color:#00d4c8">"Add to Home Screen"</strong> <span style="font-size:14px">➕</span>
+          </div>
+        </div>
+        <button onclick="document.getElementById('iosInstallTip').remove()" style="background:transparent;border:none;color:#8a9ab8;font-size:18px;cursor:pointer;padding:0;line-height:1;flex-shrink:0">✕</button>
+      </div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:center">
+        <div style="font-size:11px;color:#4a5a78">Works offline · Looks & feels like a native app</div>
+      </div>`;
+    tip.style.cssText = `
+      position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+      background:#141f35;border:1px solid rgba(0,212,200,0.2);border-radius:16px;
+      padding:16px;box-shadow:0 8px 32px rgba(0,0,0,0.5);z-index:99999;
+      width:calc(100% - 32px);max-width:420px;
+    `;
+    document.body.appendChild(tip);
+  }, 4000);
+}
 </script>
 </body>
 </html>
