@@ -1,6 +1,7 @@
 flask>=2.3.0
 anthropic>=0.25.0
 httpx>=0.27.0
+Pillow>=10.0.0
 werkzeug>=2.3.0
 gunicorn>=21.0.0
 psycopg2-binary>=2.9.0

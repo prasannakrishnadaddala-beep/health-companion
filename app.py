@@ -1179,18 +1179,34 @@ def analyze_food_photo():
     if "photo" not in request.files:
         return jsonify({"error": "No photo uploaded"}), 400
     photo = request.files["photo"]
-    ext = photo.filename.rsplit(".", 1)[-1].lower()
+    ext = photo.filename.rsplit(".", 1)[-1].lower() if photo.filename else "jpg"
     if ext not in ("jpg","jpeg","png","webp"):
         return jsonify({"error": "Please upload a JPG or PNG image"}), 400
     client = get_ai_client()
     if not client:
-        return jsonify({"error": "AI not configured"}), 400
-    import base64
-    img_data = base64.b64encode(photo.read()).decode()
+        return jsonify({"error": "AI not configured. Check ANTHROPIC_API_KEY in Railway Variables."}), 400
+    import base64, io
+    raw = photo.read()
+    # Resize image server-side to max 800px to reduce payload size and AI processing time
+    try:
+        from PIL import Image as PILImage
+        img = PILImage.open(io.BytesIO(raw))
+        img = img.convert("RGB")
+        max_px = 800
+        if max(img.width, img.height) > max_px:
+            scale = max_px / max(img.width, img.height)
+            img = img.resize((int(img.width*scale), int(img.height*scale)), PILImage.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=82)
+        raw = buf.getvalue()
+        ext = "jpeg"
+    except Exception:
+        pass  # PIL not available or error — use original
+    img_data = base64.b64encode(raw).decode()
     media_type = "image/jpeg" if ext in ("jpg","jpeg") else f"image/{ext}"
     try:
         msg = client.messages.create(
-            model="claude-opus-4-5", max_tokens=600,
+            model="claude-haiku-4-5-20251001", max_tokens=400,
             messages=[{"role":"user","content":[
                 {"type":"image","source":{"type":"base64","media_type":media_type,"data":img_data}},
                 {"type":"text","text":"""You are a nutrition expert. Analyze this food photo and identify all food items visible.
