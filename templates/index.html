@@ -1116,10 +1116,20 @@ async function analyzePhoto(input) {
   const resultEl = document.getElementById('aiCalResult');
   resultEl.style.display = 'block';
   resultEl.style.cssText = 'display:block;background:rgba(0,153,255,0.08);border:1px solid rgba(0,153,255,0.2);border-radius:10px;padding:12px 14px;font-size:13px;margin-bottom:10px;line-height:1.7;color:#8a9ab8';
-  resultEl.innerHTML = '<span class="spinner"></span>Analyzing your food photo with AI…';
-  const form = new FormData(); form.append('photo', file);
+  resultEl.innerHTML = '<span class="spinner"></span>Analyzing your food photo with AI… (may take 15-30s)';
+
+  // Resize image before upload to reduce timeout risk
+  const resized = await resizeImage(file, 800);
+  const form = new FormData(); form.append('photo', resized, 'photo.jpg');
+
   try {
     const res = await fetch('/api/analyze-food-photo', {method:'POST', body: form});
+    // Guard against HTML error pages (timeout / gateway errors)
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      resultEl.innerHTML = '<span style="color:var(--danger)">❌ Server timed out analyzing the photo. Try a smaller/clearer image or enter food details manually.</span>';
+      input.value = ''; return;
+    }
     const d = await res.json();
     if (d.calories) {
       document.getElementById('d-food').value = d.food_items || '';
@@ -1138,9 +1148,28 @@ async function analyzePhoto(input) {
       resultEl.innerHTML = `<span style="color:var(--danger)">❌ ${d.error || 'Could not analyze photo. Please enter food details manually.'}</span>`;
     }
   } catch(e) {
-    resultEl.innerHTML = `<span style="color:var(--danger)">❌ Photo analysis failed: ${e.message}</span>`;
+    resultEl.innerHTML = `<span style="color:var(--danger)">❌ Photo analysis failed. Please enter food details manually.</span>`;
   }
   input.value = '';
+}
+
+// Resize image on the client before uploading — reduces server processing time significantly
+function resizeImage(file, maxPx) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.82);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
 }
 
 async function sendDietEmail() {
