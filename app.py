@@ -97,6 +97,10 @@ def init_db():
         ("appointments", "username", "TEXT DEFAULT 'admin'"),
         ("chat_history", "username", "TEXT DEFAULT 'admin'"),
         ("user_profile", "email", "TEXT"),
+        ("user_profile", "blood_group", "TEXT"),
+        ("user_profile", "patient_id", "TEXT"),
+        ("user_profile", "patient_card", "TEXT"),
+        ("health_records", "patient_summary", "TEXT"),
     ]
     # Also create profile table if not exists
     if USE_POSTGRES and PSYCOPG2_OK:
@@ -151,6 +155,45 @@ def init_db():
 
 def hash_pw(p):
     return hashlib.sha256(p.encode()).hexdigest()
+
+def generate_patient_id():
+    """Generate a unique patient ID like HM-2024-A3F9K"""
+    import random, string
+    year = datetime.datetime.now().year
+    suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
+    return f"HM-{year}-{suffix}"
+
+def get_or_create_patient_id(username):
+    """Get existing patient ID or create one for the user."""
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT patient_id FROM user_profile WHERE username=%s", (username,))
+        row = cur.fetchone(); cur.close()
+    else:
+        r = conn.execute("SELECT patient_id FROM user_profile WHERE username=?", (username,)).fetchone()
+        row = dict(r) if r else None
+    conn.close()
+    if row and row.get("patient_id"):
+        return row["patient_id"]
+    # Generate and save
+    pid = generate_patient_id()
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor()
+        cur.execute("UPDATE user_profile SET patient_id=%s WHERE username=%s", (pid, username))
+        if cur.rowcount == 0:
+            cur.execute("INSERT INTO user_profile (username, patient_id, updated_at) VALUES (%s,%s,%s)",
+                        (username, pid, datetime.datetime.now().isoformat()))
+        conn.commit(); cur.close()
+    else:
+        conn.execute("UPDATE user_profile SET patient_id=? WHERE username=?", (pid, username))
+        if conn.execute("SELECT changes()").fetchone()[0] == 0:
+            conn.execute("INSERT OR IGNORE INTO user_profile (username, patient_id, updated_at) VALUES (?,?,?)",
+                         (username, pid, datetime.datetime.now().isoformat()))
+        conn.commit()
+    conn.close()
+    return pid
 
 def seed_admin():
     uname = os.environ.get("ADMIN_USERNAME", "admin")
@@ -415,6 +458,30 @@ def health():
         "db": "postgresql" if (USE_POSTGRES and PSYCOPG2_OK) else "sqlite"
     })
 
+# ── PWA static files ──────────────────────────────────────────────────────────
+@app.route("/static/manifest.json")
+def serve_manifest():
+    from flask import send_from_directory
+    resp = send_from_directory("static", "manifest.json")
+    resp.headers["Content-Type"] = "application/manifest+json"
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+@app.route("/static/sw.js")
+def serve_sw():
+    from flask import send_from_directory
+    resp = send_from_directory("static", "sw.js")
+    resp.headers["Content-Type"] = "application/javascript"
+    # SW must be served from root scope — no long caching
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Service-Worker-Allowed"] = "/"
+    return resp
+
+@app.route("/static/favicon.ico")
+def serve_favicon():
+    from flask import send_from_directory
+    return send_from_directory("static", "favicon.ico")
+
 # ── Vitals ────────────────────────────────────────────────────────────────────
 @app.route("/api/vitals", methods=["GET"])
 @login_required
@@ -537,29 +604,111 @@ def upload_record():
     filename = secure_filename(f"{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}")
     filepath = os.path.join(UPLOAD_FOLDER, filename); file.save(filepath)
     analysis = "File uploaded successfully."
+    patient_summary = None
+    u = session.get("username","admin")
     client = get_ai_client()
+
     if client:
         try:
+            content_for_ai = None
             if ext == "txt":
-                text = open(filepath,"r",errors="ignore").read()[:3000]
-                msg = client.messages.create(model="claude-opus-4-5",max_tokens=600,messages=[{"role":"user","content":f"Analyze this health record in 4-5 sentences:\n\n{text}"}])
-                analysis = msg.content[0].text
+                text = open(filepath,"r",errors="ignore").read()[:4000]
+                content_for_ai = [{"type":"text","text":text}]
             elif ext in ("png","jpg","jpeg"):
                 import base64
                 img = base64.b64encode(open(filepath,"rb").read()).decode()
                 mt = "image/jpeg" if ext in ("jpg","jpeg") else "image/png"
-                msg = client.messages.create(model="claude-opus-4-5",max_tokens=600,messages=[{"role":"user","content":[{"type":"image","source":{"type":"base64","media_type":mt,"data":img}},{"type":"text","text":"Analyze this health record in 4-5 sentences."}]}])
+                content_for_ai = [
+                    {"type":"image","source":{"type":"base64","media_type":mt,"data":img}},
+                    {"type":"text","text":"This is a health document/medical record."}
+                ]
+
+            if content_for_ai:
+                # Step 1: Document analysis
+                analysis_prompt = content_for_ai + [{"type":"text","text":"Analyze this health record in 4-5 sentences covering the key findings, any abnormal values, and recommended actions."}] if ext == "txt" else [content_for_ai[0], {"type":"text","text":"Analyze this health record/document in 4-5 sentences covering key findings, abnormal values, and recommended actions."}]
+                msg = client.messages.create(model="claude-opus-4-5", max_tokens=600,
+                    messages=[{"role":"user","content":analysis_prompt if ext == "txt" else content_for_ai + [{"type":"text","text":"Analyze this health record in 4-5 sentences covering key findings, abnormal values, and recommended actions."}]}])
                 analysis = msg.content[0].text
+
+                # Step 2: Build/update patient card from all records
+                # Get existing profile
+                conn2 = get_db()
+                if USE_POSTGRES and PSYCOPG2_OK:
+                    cur2 = conn2.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                    cur2.execute("SELECT * FROM user_profile WHERE username=%s",(u,))
+                    profile = cur2.fetchone()
+                    cur2.execute("SELECT analysis FROM health_records WHERE username=%s ORDER BY uploaded_at DESC LIMIT 10",(u,))
+                    past_analyses = [r["analysis"] for r in cur2.fetchall() if r["analysis"]]
+                    cur2.close()
+                else:
+                    r2 = conn2.execute("SELECT * FROM user_profile WHERE username=?",(u,)).fetchone()
+                    profile = dict(r2) if r2 else None
+                    past_analyses = [dict(r)["analysis"] for r in conn2.execute(
+                        "SELECT analysis FROM health_records WHERE username=? ORDER BY uploaded_at DESC LIMIT 10",(u,)).fetchall() if dict(r)["analysis"]]
+                conn2.close()
+
+                profile_ctx = ""
+                if profile:
+                    profile_ctx = f"Patient: {profile.get('full_name','Unknown')}, Age: {profile.get('age','?')}, Gender: {profile.get('gender','?')}, Blood Group: {profile.get('blood_group','Unknown')}, Weight: {profile.get('weight_kg','?')}kg, Height: {profile.get('height_cm','?')}cm. Medical conditions: {profile.get('medical_conditions','')}. Allergies: {profile.get('allergies','')}."
+
+                all_analyses = "\n\n".join([f"Document {i+1}: {a}" for i,a in enumerate(past_analyses)] + [f"Latest document: {analysis}"])
+
+                card_msg = client.messages.create(
+                    model="claude-opus-4-5", max_tokens=1000,
+                    messages=[{"role":"user","content":f"""Based on this patient's profile and uploaded health documents, create a comprehensive patient summary card.
+
+{profile_ctx}
+
+Health Documents Analysis:
+{all_analyses}
+
+Create a structured patient summary as a JSON object. Return ONLY valid JSON, no markdown:
+{{
+  "summary": "2-3 sentence overall health summary",
+  "conditions_identified": ["condition1", "condition2"],
+  "medications_mentioned": ["med1", "med2"],
+  "abnormal_findings": ["finding1", "finding2"],
+  "allergies_noted": ["allergy1"],
+  "recommended_followups": ["follow up 1", "follow up 2"],
+  "risk_factors": ["risk1", "risk2"],
+  "last_updated": "{datetime.datetime.now().strftime('%Y-%m-%d')}",
+  "document_count": {len(past_analyses) + 1}
+}}"""}])
+                import re as re_mod
+                card_text = card_msg.content[0].text.strip()
+                match = re_mod.search(r'\{.*\}', card_text, re_mod.DOTALL)
+                if match:
+                    patient_summary = match.group()
+                    # Save patient card to profile
+                    conn3 = get_db()
+                    if USE_POSTGRES and PSYCOPG2_OK:
+                        cur3 = conn3.cursor()
+                        cur3.execute("UPDATE user_profile SET patient_card=%s WHERE username=%s",(patient_summary,u))
+                        if cur3.rowcount == 0:
+                            cur3.execute("INSERT INTO user_profile (username,patient_card,updated_at) VALUES (%s,%s,%s)",
+                                         (u, patient_summary, datetime.datetime.now().isoformat()))
+                        cur3.close()
+                    else:
+                        conn3.execute("UPDATE user_profile SET patient_card=? WHERE username=?",(patient_summary,u))
+                        if conn3.execute("SELECT changes()").fetchone()[0] == 0:
+                            conn3.execute("INSERT OR IGNORE INTO user_profile (username,patient_card,updated_at) VALUES (?,?,?)",
+                                          (u, patient_summary, datetime.datetime.now().isoformat()))
+                    conn3.commit(); conn3.close()
+
         except Exception as e:
             analysis = f"Uploaded. Analysis unavailable: {str(e)}"
+
     conn = get_db()
     if USE_POSTGRES and PSYCOPG2_OK:
         cur = conn.cursor()
-        u=session.get("username","admin"); cur.execute("INSERT INTO health_records (filename,original_name,uploaded_at,analysis,file_type,username) VALUES (%s,%s,%s,%s,%s,%s)",(filename,file.filename,datetime.datetime.now().isoformat(),analysis,ext,u)); cur.close()
+        cur.execute("INSERT INTO health_records (filename,original_name,uploaded_at,analysis,file_type,username,patient_summary) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                    (filename,file.filename,datetime.datetime.now().isoformat(),analysis,ext,u,patient_summary))
+        cur.close()
     else:
-        u=session.get("username","admin"); conn.execute("INSERT INTO health_records (filename,original_name,uploaded_at,analysis,file_type,username) VALUES (?,?,?,?,?,?)",(filename,file.filename,datetime.datetime.now().isoformat(),analysis,ext,u))
+        conn.execute("INSERT INTO health_records (filename,original_name,uploaded_at,analysis,file_type,username,patient_summary) VALUES (?,?,?,?,?,?,?)",
+                     (filename,file.filename,datetime.datetime.now().isoformat(),analysis,ext,u,patient_summary))
     conn.commit(); conn.close()
-    return jsonify({"status":"ok","analysis":analysis})
+    return jsonify({"status":"ok","analysis":analysis,"patient_card_updated": patient_summary is not None})
 
 @app.route("/api/records/<int:rid>", methods=["DELETE"])
 @login_required
@@ -687,6 +836,8 @@ Rules:
 @login_required
 def get_profile():
     username = session.get("username")
+    # Ensure patient ID exists
+    pid = get_or_create_patient_id(username)
     conn = get_db()
     if USE_POSTGRES and PSYCOPG2_OK:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -696,7 +847,10 @@ def get_profile():
         r = conn.execute("SELECT * FROM user_profile WHERE username=?", (username,)).fetchone()
         row = dict(r) if r else None
     conn.close()
-    return jsonify(dict(row) if row else {})
+    result = dict(row) if row else {}
+    if not result.get("patient_id"):
+        result["patient_id"] = pid
+    return jsonify(result)
 
 @app.route("/api/profile", methods=["POST"])
 @login_required
@@ -734,8 +888,8 @@ def save_profile():
         cur.execute("""INSERT INTO user_profile
             (username,full_name,age,gender,weight_kg,height_cm,activity_level,health_goals,
              medical_conditions,allergies,dietary_pref,calorie_target,protein_target,
-             carb_target,fat_target,water_target,email,updated_at)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+             carb_target,fat_target,water_target,email,blood_group,updated_at)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             ON CONFLICT (username) DO UPDATE SET
             full_name=EXCLUDED.full_name, age=EXCLUDED.age, gender=EXCLUDED.gender,
             weight_kg=EXCLUDED.weight_kg, height_cm=EXCLUDED.height_cm,
@@ -744,28 +898,107 @@ def save_profile():
             dietary_pref=EXCLUDED.dietary_pref, calorie_target=EXCLUDED.calorie_target,
             protein_target=EXCLUDED.protein_target, carb_target=EXCLUDED.carb_target,
             fat_target=EXCLUDED.fat_target, water_target=EXCLUDED.water_target,
-            email=EXCLUDED.email, updated_at=EXCLUDED.updated_at""",
+            email=EXCLUDED.email, blood_group=EXCLUDED.blood_group, updated_at=EXCLUDED.updated_at""",
             (username, d.get("full_name",""), age, gender, weight, height,
              activity, d.get("health_goals",""), d.get("medical_conditions",""),
              d.get("allergies",""), d.get("dietary_pref",""),
              cal_target, protein_target, carb_target, fat_target, water_target,
-             d.get("email",""), ts))
+             d.get("email",""), d.get("blood_group",""), ts))
         cur.close()
     else:
         conn.execute("DELETE FROM user_profile WHERE username=?", (username,))
         conn.execute("""INSERT INTO user_profile
             (username,full_name,age,gender,weight_kg,height_cm,activity_level,health_goals,
              medical_conditions,allergies,dietary_pref,calorie_target,protein_target,
-             carb_target,fat_target,water_target,email,updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+             carb_target,fat_target,water_target,email,blood_group,updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (username, d.get("full_name",""), age, gender, weight, height,
              activity, d.get("health_goals",""), d.get("medical_conditions",""),
              d.get("allergies",""), d.get("dietary_pref",""),
              cal_target, protein_target, carb_target, fat_target, water_target,
-             d.get("email",""), ts))
+             d.get("email",""), d.get("blood_group",""), ts))
     conn.commit(); conn.close()
     return jsonify({"status":"ok","calorie_target":cal_target,"protein_target":protein_target,
                     "carb_target":carb_target,"fat_target":fat_target,"water_target":water_target})
+
+# ── Patient Card ──────────────────────────────────────────────────────────────
+@app.route("/api/patient-card", methods=["GET"])
+@login_required
+def get_patient_card():
+    u = session.get("username","admin")
+    pid = get_or_create_patient_id(u)
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT * FROM user_profile WHERE username=%s", (u,))
+        row = cur.fetchone(); cur.close()
+    else:
+        r = conn.execute("SELECT * FROM user_profile WHERE username=?", (u,)).fetchone()
+        row = dict(r) if r else None
+    conn.close()
+    profile = dict(row) if row else {}
+    card = None
+    if profile.get("patient_card"):
+        try:
+            card = json.loads(profile["patient_card"])
+        except Exception:
+            card = None
+    return jsonify({
+        "patient_id": profile.get("patient_id") or pid,
+        "full_name":  profile.get("full_name",""),
+        "age":        profile.get("age",""),
+        "gender":     profile.get("gender",""),
+        "blood_group":profile.get("blood_group",""),
+        "weight_kg":  profile.get("weight_kg",""),
+        "height_cm":  profile.get("height_cm",""),
+        "medical_conditions": profile.get("medical_conditions",""),
+        "allergies":  profile.get("allergies",""),
+        "email":      profile.get("email",""),
+        "patient_card": card
+    })
+
+# ── App Download Info ─────────────────────────────────────────────────────────
+@app.route("/api/app-download-info", methods=["GET"])
+@login_required
+def app_download_info():
+    """Returns app download links. Android APK can be self-hosted; iOS requires App Store."""
+    base = os.environ.get("APP_BASE_URL","").strip().rstrip("/") or ("https://" + request.host)
+    return jsonify({
+        "android": {
+            "available": True,
+            "type": "direct_apk",
+            "url": f"{base}/download/android",
+            "label": "Download for Android",
+            "note": "APK file — install directly on your Android device"
+        },
+        "ios": {
+            "available": bool(os.environ.get("IOS_APPSTORE_URL","")),
+            "type": "appstore",
+            "url": os.environ.get("IOS_APPSTORE_URL",""),
+            "label": "Download on App Store",
+            "note": "Opens Apple App Store"
+        },
+        "pwa": {
+            "available": True,
+            "type": "pwa",
+            "url": base,
+            "label": "Add to Home Screen",
+            "note": "Works on any device without installation"
+        }
+    })
+
+@app.route("/download/android")
+@login_required
+def download_android():
+    """Serve the Android APK if it exists in /static/downloads/"""
+    from flask import send_from_directory
+    dl_dir = os.path.join(os.path.dirname(__file__), "static", "downloads")
+    apk_name = "healthmate.apk"
+    if os.path.exists(os.path.join(dl_dir, apk_name)):
+        return send_from_directory(dl_dir, apk_name,
+                                   as_attachment=True,
+                                   download_name="HealthMate.apk")
+    return jsonify({"error": "APK not yet available. Please check back later or use the PWA."}), 404
 
 @app.route("/api/analyze-nutrition", methods=["POST"])
 @login_required
