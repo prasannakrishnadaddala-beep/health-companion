@@ -951,15 +951,102 @@ async function loadDiet() {
       <div class="stat-card"><div class="stat-label">Meals logged</div><div class="stat-value">${entries.length}</div><div class="stat-unit">entries today</div><span class="stat-badge ${entries.length>=3?'badge-ok':'badge-warn'}">${entries.length>=3?'Good':'Log more'}</span></div>
     </div>`;
 
+  const mealMeta = {
+    Breakfast: { icon: '🌅', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)' },
+    Lunch:     { icon: '☀️', color: '#10b981', bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.2)' },
+    Snack:     { icon: '🍎', color: '#8b5cf6', bg: 'rgba(139,92,246,0.08)', border: 'rgba(139,92,246,0.2)' },
+    Dinner:    { icon: '🌙', color: '#3b82f6', bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.2)' }
+  };
   const meals = ['Breakfast','Lunch','Snack','Dinner'];
   const el = document.getElementById('dietEntries');
-  el.innerHTML = meals.map(meal => {
-    const items = entries.filter(e => e.meal_type === meal);
-    return `<div class="meal-section">
-      <div class="meal-title"><span>${meal}</span><span style="font-size:12px;color:var(--muted)">${items.reduce((s,e)=>s+(e.calories||0),0)} kcal</span></div>
-      ${items.length ? items.map(e => `<div class="food-item"><span>${e.food_items || e.notes || '—'}</span><div style="display:flex;align-items:center;gap:8px"><span style="color:var(--muted);font-size:12px">${e.calories||0} kcal</span><button class="btn-icon" onclick="deleteDiet(${e.id})" style="font-size:13px">✕</button></div></div>`).join('') : `<p style="color:var(--muted);font-size:13px;padding:4px 0">None logged</p>`}
-    </div>`;
-  }).join('');
+  el.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px">
+      ${meals.map(meal => {
+        const items = entries.filter(e => e.meal_type === meal);
+        const m = mealMeta[meal];
+        const totalMealCal = items.reduce((s,e)=>s+(e.calories||0),0);
+        return `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+          <!-- Meal Header -->
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:${m.bg};border-bottom:1px solid ${items.length ? m.border : 'transparent'}">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:34px;height:34px;border-radius:10px;background:${m.bg};border:1px solid ${m.border};display:flex;align-items:center;justify-content:center;font-size:18px">${m.icon}</div>
+              <div>
+                <div style="font-size:14px;font-weight:600;color:var(--text)">${meal}</div>
+                <div style="font-size:11px;color:var(--text3)">${items.length} item${items.length!==1?'s':''}</div>
+              </div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:18px;font-weight:700;color:${m.color};font-family:var(--mono)">${totalMealCal.toLocaleString()}</div>
+              <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em">kcal</div>
+            </div>
+          </div>
+          <!-- Items -->
+          <div style="padding:${items.length?'8px':'0'} 0">
+            ${items.length ? items.map((e,i) => {
+              let nutrients = null;
+              try { if (e.notes && e.notes.startsWith('{')) nutrients = JSON.parse(e.notes); } catch(err){}
+              return `
+              <div id="diet-row-${e.id}" style="padding:10px 16px;display:flex;align-items:flex-start;gap:12px;border-bottom:${i<items.length-1?'1px solid var(--border)':'none'};transition:background 0.15s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='transparent'">
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.4;margin-bottom:${nutrients?'6px':'0'}">${e.food_items || '—'}</div>
+                  ${nutrients ? `<div style="display:flex;gap:8px;flex-wrap:wrap">
+                    ${nutrients.protein_g!=null?`<span style="font-size:10px;background:rgba(37,99,235,0.12);color:#60a5fa;padding:2px 7px;border-radius:20px;font-weight:500">P ${nutrients.protein_g}g</span>`:''}
+                    ${nutrients.carbs_g!=null?`<span style="font-size:10px;background:rgba(217,119,6,0.12);color:#fbbf24;padding:2px 7px;border-radius:20px;font-weight:500">C ${nutrients.carbs_g}g</span>`:''}
+                    ${nutrients.fat_g!=null?`<span style="font-size:10px;background:rgba(220,38,38,0.12);color:#f87171;padding:2px 7px;border-radius:20px;font-weight:500">F ${nutrients.fat_g}g</span>`:''}
+                    ${nutrients.fiber_g!=null?`<span style="font-size:10px;background:rgba(22,163,74,0.12);color:#4ade80;padding:2px 7px;border-radius:20px;font-weight:500">Fiber ${nutrients.fiber_g}g</span>`:''}
+                  </div>` : ''}
+                </div>
+                <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+                  <span style="font-size:13px;font-weight:600;color:${m.color};font-family:var(--mono);min-width:60px;text-align:right">${(e.calories||0).toLocaleString()} kcal</span>
+                  ${e.water_ml ? `<span style="font-size:11px;color:var(--accent2);background:rgba(0,153,255,0.1);padding:2px 6px;border-radius:8px">💧${e.water_ml}ml</span>` : ''}
+                  <button onclick="openEditDiet(${e.id},'${(e.food_items||'').replace(/'/g,"\\'")}',${e.calories||0},${e.water_ml||0},'${e.meal_type}')" title="Edit" style="width:28px;height:28px;border-radius:7px;border:1px solid var(--border2);background:transparent;cursor:pointer;color:var(--text3);font-size:13px;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.background='rgba(0,212,200,0.1)';this.style.color='var(--accent)';this.style.borderColor='rgba(0,212,200,0.3)'" onmouseout="this.style.background='transparent';this.style.color='var(--text3)';this.style.borderColor='var(--border2)'">✏️</button>
+                  <button onclick="deleteDiet(${e.id})" title="Delete" style="width:28px;height:28px;border-radius:7px;border:1px solid var(--border2);background:transparent;cursor:pointer;color:var(--text3);font-size:13px;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.background='rgba(255,77,109,0.1)';this.style.color='var(--danger)';this.style.borderColor='rgba(255,77,109,0.3)'" onmouseout="this.style.background='transparent';this.style.color='var(--text3)';this.style.borderColor='var(--border2)'">🗑️</button>
+                </div>
+              </div>`;
+            }).join('') : `<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">Nothing logged yet</div>`}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <!-- Edit Diet Modal -->
+    <div id="editDietModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)" onclick="if(event.target===this)closeEditDiet()">
+      <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:24px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div style="font-size:16px;font-weight:600;color:var(--text)">✏️ Edit Meal Entry</div>
+          <button onclick="closeEditDiet()" style="width:30px;height:30px;border-radius:8px;border:1px solid var(--border2);background:transparent;cursor:pointer;color:var(--text3);font-size:16px;display:flex;align-items:center;justify-content:center">×</button>
+        </div>
+        <input type="hidden" id="editDietId">
+        <div class="form-group">
+          <label>Meal Type</label>
+          <select id="editDietMeal" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--r);background:var(--bg3);color:var(--text);font-size:13px;font-family:var(--font)">
+            <option value="Breakfast">🌅 Breakfast</option>
+            <option value="Lunch">☀️ Lunch</option>
+            <option value="Snack">🍎 Snack</option>
+            <option value="Dinner">🌙 Dinner</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Food Items</label>
+          <textarea id="editDietFood" rows="3" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--r);background:var(--bg3);color:var(--text);font-size:13px;font-family:var(--font);resize:vertical;line-height:1.5"></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Calories (kcal)</label>
+            <input type="number" id="editDietCal" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--r);background:var(--bg3);color:var(--text);font-size:13px;font-family:var(--font)">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Water (ml)</label>
+            <input type="number" id="editDietWater" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--r);background:var(--bg3);color:var(--text);font-size:13px;font-family:var(--font)">
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:20px">
+          <button onclick="closeEditDiet()" style="flex:1;padding:10px;border:1px solid var(--border2);border-radius:var(--r);background:transparent;cursor:pointer;color:var(--text2);font-size:14px;font-family:var(--font)">Cancel</button>
+          <button onclick="saveEditDiet()" style="flex:2;padding:10px;border:none;border-radius:var(--r);background:linear-gradient(135deg,var(--accent),#00b8ad);cursor:pointer;color:#001a1a;font-size:14px;font-weight:600;font-family:var(--font)">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 async function analyzeCals() {
@@ -1044,6 +1131,51 @@ async function addDiet() {
 async function deleteDiet(id) {
   await fetch(`/api/diet/${id}`, {method:'DELETE'});
   loadDiet();
+}
+
+function openEditDiet(id, foodItems, calories, water, mealType) {
+  document.getElementById('editDietId').value = id;
+  document.getElementById('editDietFood').value = foodItems;
+  document.getElementById('editDietCal').value = calories;
+  document.getElementById('editDietWater').value = water;
+  document.getElementById('editDietMeal').value = mealType;
+  const modal = document.getElementById('editDietModal');
+  modal.style.display = 'flex';
+  setTimeout(() => document.getElementById('editDietFood').focus(), 50);
+}
+
+function closeEditDiet() {
+  document.getElementById('editDietModal').style.display = 'none';
+}
+
+async function saveEditDiet() {
+  const id = document.getElementById('editDietId').value;
+  const food = document.getElementById('editDietFood').value.trim();
+  if (!food) { showToast('Please enter food items', 'warn'); return; }
+  const btn = document.querySelector('#editDietModal button[onclick="saveEditDiet()"]');
+  if (btn) { btn.textContent = 'Saving…'; btn.disabled = true; }
+  try {
+    const res = await fetch(`/api/diet/${id}`, {
+      method: 'PATCH',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        food_items: food,
+        meal_type: document.getElementById('editDietMeal').value,
+        calories: parseInt(document.getElementById('editDietCal').value) || 0,
+        water_ml: parseInt(document.getElementById('editDietWater').value) || 0
+      })
+    });
+    if (res.ok) {
+      closeEditDiet();
+      showToast('Meal updated ✓', 'ok');
+      loadDiet();
+    } else {
+      showToast('Update failed', 'error');
+    }
+  } catch(e) {
+    showToast('Update failed', 'error');
+  }
+  if (btn) { btn.textContent = 'Save Changes'; btn.disabled = false; }
 }
 
 // ─── APPOINTMENTS ─────────────────────────────────────────────────────
