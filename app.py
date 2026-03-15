@@ -990,15 +990,10 @@ def app_download_info():
 @app.route("/download/android")
 @login_required
 def download_android():
-    """Serve the Android APK if it exists in /static/downloads/"""
-    from flask import send_from_directory
-    dl_dir = os.path.join(os.path.dirname(__file__), "static", "downloads")
-    apk_name = "healthmate.apk"
-    if os.path.exists(os.path.join(dl_dir, apk_name)):
-        return send_from_directory(dl_dir, apk_name,
-                                   as_attachment=True,
-                                   download_name="HealthMate.apk")
-    return jsonify({"error": "APK not yet available. Please check back later or use the PWA."}), 404
+    """Redirect to GitHub Releases APK download"""
+    from flask import redirect
+    apk_url = "https://github.com/prasannakrishnadaddala-beep/healthmate-flutter/releases/download/v1.0.0/healthmate.apk"
+    return redirect(apk_url)
 
 @app.route("/api/analyze-nutrition", methods=["POST"])
 @login_required
