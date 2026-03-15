@@ -38,6 +38,7 @@
   --glow2: 0 0 30px rgba(0,153,255,0.2);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
+@keyframes slideIn { from { transform: translateX(60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 html { scroll-behavior: smooth; }
 body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
 
@@ -352,6 +353,19 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
     </div>
 
     <div class="nav-section">
+      <div class="nav-label">Care</div>
+      <div class="nav-item" data-tab="doctors" onclick="switchTab('doctors')">
+        <div class="nav-icon">🩺</div><span>My Doctors</span>
+      </div>
+      <div class="nav-item" data-tab="emergency" onclick="switchTab('emergency')">
+        <div class="nav-icon">🆘</div><span>Emergency</span>
+      </div>
+      <div class="nav-item" data-tab="notifications" onclick="switchTab('notifications')">
+        <div class="nav-icon">🔔</div><span>Reminders</span>
+        <span class="nav-badge hidden" id="notifBadge">0</span>
+      </div>
+    </div>
+    <div class="nav-section">
       <div class="nav-label">Account</div>
       <div class="nav-item" data-tab="profile" onclick="switchTab('profile')">
         <div class="nav-icon">👤</div><span>My Profile</span>
@@ -396,6 +410,9 @@ function switchTab(tab) {
   else if (tab === 'diet') renderDiet();
   else if (tab === 'appointments') renderAppointments();
   else if (tab === 'profile') renderProfile();
+  else if (tab === 'doctors') renderDoctors();
+  else if (tab === 'emergency') renderEmergency();
+  else if (tab === 'notifications') renderNotifications();
 }
 
 // ─── CHAT ────────────────────────────────────────────────────────────
@@ -997,14 +1014,30 @@ async function analyzeCals() {
 }
 
 async function addDiet() {
+  const food = document.getElementById('d-food').value.trim();
+  if (!food) { showToast('Please enter food items', 'warn'); return; }
+  const mealType = document.getElementById('d-meal').value;
+  if (!mealType) { showToast('Please select a meal type', 'warn'); return; }
   const date = document.getElementById('dietDate')?.value || today;
-  await fetch('/api/diet', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-    date, meal_type: document.getElementById('d-meal').value,
-    food_items: document.getElementById('d-food').value,
+  const btn = event?.target;
+  if (btn) { btn.textContent = 'Saving…'; btn.disabled = true; }
+  const res = await fetch('/api/diet', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    date, meal_type: mealType,
+    food_items: food,
     calories: parseInt(document.getElementById('d-cal').value)||0,
     water_ml: parseInt(document.getElementById('d-water').value)||0,
     notes: document.getElementById('d-notes').value
   })});
+  if (btn) { btn.textContent = 'Log Meal'; btn.disabled = false; }
+  if (res.ok) {
+    // Clear form fields after successful save
+    document.getElementById('d-food').value = '';
+    document.getElementById('d-cal').value = '';
+    document.getElementById('d-water').value = '';
+    document.getElementById('d-notes').value = '';
+    document.getElementById('aiCalResult').style.display = 'none';
+    showToast('Meal logged successfully ✓', 'ok');
+  }
   loadDiet();
 }
 
@@ -1014,29 +1047,92 @@ async function deleteDiet(id) {
 }
 
 // ─── APPOINTMENTS ─────────────────────────────────────────────────────
+const PREP_TIPS = {
+  'Cardiologist':    ['Fast for 4 hours if blood tests expected','Wear comfortable, loose clothing','Bring previous ECG reports','List all current medications','Note any chest pain episodes'],
+  'Dermatologist':   ['Come with clean skin, no makeup','Bring photos of skin changes over time','List all skincare products used','Note any new allergies or reactions'],
+  'Neurologist':     ['Bring MRI/CT scan reports','Note frequency and duration of symptoms','List all medications including supplements','Have someone accompany you if needed'],
+  'Orthopedic':      ['Bring X-rays and MRI reports','Wear easy-to-remove clothing','Note pain level and triggers','List previous injuries or surgeries'],
+  'Diabetologist':   ['Fast for 8–10 hours for fasting sugar test','Bring glucose diary or readings','Bring HbA1c reports','List all diabetes medications'],
+  'Gynecologist':    ['Avoid intercourse 24h before if pelvic exam','Bring menstrual cycle history','List all current medications','Note any unusual symptoms'],
+  'Ophthalmologist': ['Bring existing glasses or contact lenses','You may need someone to drive you back (dilation)','Bring previous eye prescriptions'],
+  'Dentist':         ['Brush and floss before visit','List all medications you take','Mention any dental anxiety to staff','Bring previous X-rays if available'],
+  'General Physician':['List all current symptoms with duration','Bring all existing reports','Note any recent changes in health','List all medications'],
+};
+function getPrep(specialty) {
+  return PREP_TIPS[specialty] || ['Bring all previous medical reports','List all current medications','Note your symptoms and their duration','Arrive 10 minutes early'];
+}
+
 async function renderAppointments() {
   document.getElementById('mainContent').innerHTML = `
     <div class="page-header">
       <div><div class="page-title">Appointments</div><div class="page-sub">Schedule and track doctor visits</div></div>
+      <button class="btn btn-primary" onclick="document.getElementById('bookPanel').scrollIntoView({behavior:'smooth'})">+ Book Appointment</button>
     </div>
     <div id="apptAlert"></div>
     <div class="grid-2">
       <div id="apptList"></div>
-      <div class="card">
-        <div class="card-title">Schedule Appointment</div>
-        <div class="form-group"><label>Doctor Name</label><input type="text" id="a-doctor" placeholder="Dr. Name"></div>
-        <div class="form-group"><label>Specialty</label><input type="text" id="a-spec" placeholder="e.g. Cardiologist"></div>
+      <div class="card" id="bookPanel">
+        <div class="card-title">📅 Book Appointment</div>
+        <div class="form-group"><label>Doctor Name *</label>
+          <input type="text" id="a-doctor" placeholder="Dr. Name" oninput="suggestDoctor(this.value)">
+          <div id="doctorSuggest" style="display:none;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);margin-top:4px;overflow:hidden"></div>
+        </div>
         <div class="form-row">
-          <div class="form-group"><label>Date</label><input type="date" id="a-date" value="${today}"></div>
+          <div class="form-group"><label>Specialty</label>
+            <select id="a-spec" onchange="updatePrepTips()">
+              ${Object.keys(PREP_TIPS).map(s=>`<option>${s}</option>`).join('')}
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Reason for Visit</label><input type="text" id="a-reason" placeholder="Follow-up, Check-up…"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Date *</label><input type="date" id="a-date" value="${today}"></div>
           <div class="form-group"><label>Time</label><input type="time" id="a-time" value="10:00"></div>
         </div>
         <div class="form-group"><label>Location / Clinic</label><input type="text" id="a-loc" placeholder="Hospital or clinic name"></div>
-        <div class="form-group"><label>Reason for Visit</label><input type="text" id="a-reason" placeholder="e.g. Follow-up, Check-up"></div>
         <div class="form-group"><label>Notes</label><textarea id="a-notes" rows="2" placeholder="Any special instructions…"></textarea></div>
-        <button class="btn btn-primary" onclick="addAppointment()">Book Appointment</button>
+
+        <!-- Prep checklist -->
+        <div id="prepTipsBox" style="background:rgba(0,212,200,0.06);border:1px solid rgba(0,212,200,0.2);border-radius:var(--r);padding:14px;margin-bottom:14px">
+          <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:8px">✅ Preparation checklist</div>
+          <div id="prepTipsList" style="font-size:12px;color:var(--text2);line-height:1.9"></div>
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="addAppointment()">Book Appointment</button>
       </div>
     </div>`;
   loadAppointments();
+  updatePrepTips();
+}
+
+function updatePrepTips() {
+  const spec = document.getElementById('a-spec')?.value || '';
+  const tips = getPrep(spec);
+  const el = document.getElementById('prepTipsList');
+  if (el) el.innerHTML = tips.map(t => `<div style="display:flex;gap:8px;align-items:flex-start"><span style="color:var(--accent);margin-top:2px">•</span><span>${t}</span></div>`).join('');
+}
+
+async function suggestDoctor(val) {
+  const box = document.getElementById('doctorSuggest');
+  if (!val || val.length < 2) { box.style.display='none'; return; }
+  const res = await fetch('/api/doctors');
+  const doctors = await res.json();
+  const matches = doctors.filter(d => d.name.toLowerCase().includes(val.toLowerCase()));
+  if (!matches.length) { box.style.display='none'; return; }
+  box.style.display='block';
+  box.innerHTML = matches.slice(0,4).map(d =>
+    `<div onclick="pickDoctor('${d.name.replace(/'/g,"\'")}','${(d.specialty||'').replace(/'/g,"\'")}','${(d.hospital||'').replace(/'/g,"\'")}','${(d.phone||'').replace(/'/g,"\'")}');document.getElementById('doctorSuggest').style.display='none'" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;display:flex;gap:10px;align-items:center" onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background=''">
+      <span style="font-size:18px">${specialtyIcon(d.specialty)}</span>
+      <div><div style="font-weight:500">${d.name}</div><div style="font-size:11px;color:var(--text3)">${d.specialty}${d.hospital?' · '+d.hospital:''}</div></div>
+    </div>`).join('');
+}
+
+function pickDoctor(name, specialty, hospital, phone) {
+  document.getElementById('a-doctor').value = name;
+  const specEl = document.getElementById('a-spec');
+  if (specEl && specialty) specEl.value = specialty;
+  if (hospital) document.getElementById('a-loc').value = hospital;
+  updatePrepTips();
 }
 
 async function loadAppointments() {
@@ -1054,48 +1150,80 @@ async function loadAppointments() {
   if (todayAppts.length) alertEl.innerHTML = `<div class="alert alert-warn">📅 You have ${todayAppts.length} appointment${todayAppts.length>1?'s':''} today!</div>`;
 
   const listEl = document.getElementById('apptList');
+
   const renderAppt = (a, isPast) => {
     const d = new Date(a.date + 'T12:00:00');
-    return `<div class="appt-card ${isPast?'appt-completed':''}">
-      <div class="appt-date-box">
-        <div class="appt-day">${d.getDate()}</div>
-        <div class="appt-month">${d.toLocaleDateString('en-IN',{month:'short'})}</div>
-      </div>
-      <div class="appt-info">
-        <div class="appt-doctor">${a.doctor_name}</div>
-        <div class="appt-specialty">${a.specialty}</div>
-        <div class="appt-meta">
-          ${a.time?`<span>🕐 ${a.time}</span>`:''}
-          ${a.location?`<span>📍 ${a.location}</span>`:''}
-          ${a.reason?`<span>📝 ${a.reason}</span>`:''}
+    const isToday = a.date === today;
+    const daysUntil = Math.ceil((d - new Date()) / 86400000);
+    const prep = !isPast ? getPrep(a.specialty) : [];
+    const icon = specialtyIcon(a.specialty);
+    return `
+    <div style="background:var(--surface);border:1px solid ${isToday?'rgba(255,179,71,0.4)':isPast?'var(--border)':'var(--border)'};border-radius:var(--r2);padding:18px;margin-bottom:12px;opacity:${isPast?'0.7':'1'};transition:border-color 0.2s" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='${isToday?'rgba(255,179,71,0.4)':isPast?'var(--border)':'var(--border)'}'">
+      ${isToday ? `<div style="background:rgba(255,179,71,0.1);color:var(--warning);font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;display:inline-block;margin-bottom:10px;border:1px solid rgba(255,179,71,0.3)">📅 TODAY</div>` : ''}
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <div style="min-width:56px;text-align:center">
+          <div style="background:${isPast?'var(--surface2)':'linear-gradient(135deg,rgba(0,212,200,0.15),rgba(0,153,255,0.1))'};border-radius:12px;padding:8px 6px;border:1px solid ${isPast?'var(--border)':'rgba(0,212,200,0.25)'}">
+            <div style="font-size:22px;margin-bottom:2px">${icon}</div>
+            <div style="font-size:20px;font-weight:700;color:${isPast?'var(--text2)':'var(--accent)'};line-height:1">${d.getDate()}</div>
+            <div style="font-size:10px;color:var(--text3)">${d.toLocaleDateString('en-IN',{month:'short'}).toUpperCase()}</div>
+          </div>
         </div>
-        ${a.notes?`<div style="font-size:12px;color:var(--muted);margin-top:4px">${a.notes}</div>`:''}
-      </div>
-      <div class="appt-actions">
-        ${!isPast?`<button class="btn btn-sm" onclick="completeAppt(${a.id})">✓ Done</button>`:''}
-        <button class="btn-icon" onclick="deleteAppt(${a.id})">🗑</button>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:15px;margin-bottom:2px">${a.doctor_name}</div>
+          <div style="color:var(--accent);font-size:12px;margin-bottom:6px">${a.specialty||''}${a.reason?' · '+a.reason:''}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--text2);margin-bottom:8px">
+            ${a.time?`<span>🕐 ${a.time}</span>`:''}
+            ${a.location?`<span>📍 ${a.location}</span>`:''}
+            ${!isPast && daysUntil>0 ? `<span style="color:var(--warning)">⏳ In ${daysUntil} day${daysUntil>1?'s':''}</span>` : ''}
+          </div>
+          ${a.notes?`<div style="font-size:12px;color:var(--text3);margin-bottom:8px">📝 ${a.notes}</div>`:''}
+          ${!isPast && prep.length ? `
+          <details style="margin-top:8px">
+            <summary style="font-size:12px;color:var(--accent);cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px">
+              <span>✅</span> Preparation checklist <span style="color:var(--text3)">(${prep.length} tips)</span>
+            </summary>
+            <div style="margin-top:8px;background:rgba(0,212,200,0.05);border-radius:var(--r);padding:10px 12px;border:1px solid rgba(0,212,200,0.12)">
+              ${prep.map(t=>`<div style="font-size:12px;color:var(--text2);padding:3px 0;display:flex;gap:8px"><span style="color:var(--accent)">•</span>${t}</div>`).join('')}
+            </div>
+          </details>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+          ${!isPast ? `<button onclick="completeAppt(${a.id})" style="background:rgba(0,229,160,0.1);color:var(--success);border:1px solid rgba(0,229,160,0.25);border-radius:var(--r);padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">✓ Done</button>` : `<span style="font-size:11px;color:var(--text3);background:var(--surface2);padding:4px 8px;border-radius:6px">Completed</span>`}
+          <button onclick="deleteAppt(${a.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:4px">🗑</button>
+        </div>
       </div>
     </div>`;
   };
 
   listEl.innerHTML = `
-    ${upcoming.length ? '<div class="card-title" style="margin-bottom:10px">Upcoming</div>' + upcoming.map(a => renderAppt(a, false)).join('') : '<p style="color:var(--muted);font-size:13px;margin-bottom:16px">No upcoming appointments.</p>'}
-    ${past.length ? '<div class="card-title" style="margin-top:16px;margin-bottom:10px">Past</div>' + past.map(a => renderAppt(a, true)).join('') : ''}`;
+    ${upcoming.length
+      ? `<div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px">Upcoming (${upcoming.length})</div>` + upcoming.map(a => renderAppt(a,false)).join('')
+      : `<div style="text-align:center;padding:32px;background:var(--surface);border-radius:var(--r2);border:1px solid var(--border);color:var(--text2);font-size:13px;margin-bottom:12px">No upcoming appointments.<br><span style="color:var(--text3);font-size:12px">Use the form to book one →</span></div>`}
+    ${past.length ? `<div style="font-size:13px;font-weight:600;color:var(--text3);margin:16px 0 10px;text-transform:uppercase;letter-spacing:0.5px">Past</div>` + past.map(a => renderAppt(a,true)).join('') : ''}`;
 }
 
 async function addAppointment() {
   const doctor = document.getElementById('a-doctor').value.trim();
-  if (!doctor) return alert('Please enter doctor name');
+  const date   = document.getElementById('a-date').value;
+  if (!doctor) { showToast('Please enter doctor name','warn'); return; }
+  if (!date)   { showToast('Please select a date','warn'); return; }
+  const btn = event?.target;
+  if (btn) { btn.textContent='Booking…'; btn.disabled=true; }
   await fetch('/api/appointments', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
     doctor_name: doctor,
     specialty: document.getElementById('a-spec').value,
-    date: document.getElementById('a-date').value,
-    time: document.getElementById('a-time').value,
+    date, time: document.getElementById('a-time').value,
     location: document.getElementById('a-loc').value,
     reason: document.getElementById('a-reason').value,
     notes: document.getElementById('a-notes').value
   })});
-  renderAppointments();
+  if (btn) { btn.textContent='Book Appointment'; btn.disabled=false; }
+  // Clear fields
+  document.getElementById('a-doctor').value='';
+  document.getElementById('a-reason').value='';
+  document.getElementById('a-notes').value='';
+  showToast(`Appointment with ${doctor} booked ✓`);
+  loadAppointments();
 }
 
 async function completeAppt(id) {
@@ -1409,6 +1537,333 @@ async function saveProfile() {
     renderProfile();
   }
 }
+
+// ══════════════════════════════════════════════════════════════════
+// ─── TOAST NOTIFICATION ──────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+function showToast(msg, type='ok', duration=3000) {
+  const colors = { ok:'#00e5a0', warn:'#ffb347', error:'#ff4d6d', info:'#0099ff' };
+  const icons  = { ok:'✓', warn:'⚠️', error:'✕', info:'ℹ' };
+  const t = document.createElement('div');
+  t.style.cssText = `position:fixed;bottom:28px;right:28px;z-index:9999;background:var(--surface2);border:1px solid ${colors[type]}44;border-left:3px solid ${colors[type]};border-radius:10px;padding:12px 18px;font-size:13px;color:var(--text);display:flex;align-items:center;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,0.4);animation:slideIn 0.25s ease;max-width:340px`;
+  t.innerHTML = `<span style="color:${colors[type]};font-size:16px">${icons[type]}</span><span>${msg}</span>`;
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity 0.3s'; setTimeout(()=>t.remove(),300); }, duration);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ─── SPECIALTY ICONS ─────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+const SPECIALTY_ICONS = {
+  'Cardiologist':'❤️','Dermatologist':'🧴','Neurologist':'🧠','Orthopedic':'🦴',
+  'Pediatrician':'👶','Gynecologist':'🌸','ENT':'👂','Ophthalmologist':'👁️',
+  'Psychiatrist':'🧘','Dentist':'🦷','Gastroenterologist':'🫁','Urologist':'💧',
+  'General Physician':'🩺','Diabetologist':'🩸','Pulmonologist':'🫁','Oncologist':'🎗️',
+  'Nephrologist':'🫘','Rheumatologist':'🦾','Endocrinologist':'⚗️'
+};
+function specialtyIcon(s) {
+  return SPECIALTY_ICONS[s] || '🩺';
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ─── DOCTORS ─────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+async function renderDoctors() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `
+  <div class="page-header">
+    <div><div class="page-title">My Doctors</div><div class="page-sub">Your care team directory</div></div>
+    <button class="btn btn-primary" onclick="showAddDoctorModal()">+ Add Doctor</button>
+  </div>
+  <div id="doctorAlert"></div>
+  <div id="doctorGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:4px"></div>
+  <div id="addDoctorModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;display:none;align-items:center;justify-content:center">
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:18px;padding:28px;width:min(480px,90vw);max-height:90vh;overflow-y:auto">
+      <div style="font-size:17px;font-weight:600;margin-bottom:20px">Add Doctor</div>
+      <div class="form-group"><label>Doctor Name *</label><input type="text" id="dc-name" placeholder="Dr. Arun Kumar"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Specialty *</label>
+          <select id="dc-spec">
+            ${Object.keys(SPECIALTY_ICONS).map(s=>`<option>${s}</option>`).join('')}
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Phone *</label><input type="tel" id="dc-phone" placeholder="+91 98765 43210"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Email</label><input type="email" id="dc-email" placeholder="doctor@hospital.com"></div>
+        <div class="form-group"><label>Hospital / Clinic</label><input type="text" id="dc-hospital" placeholder="Apollo Hospital"></div>
+      </div>
+      <div class="form-group"><label>Address</label><input type="text" id="dc-address" placeholder="Street, City"></div>
+      <div class="form-group"><label>Notes</label><textarea id="dc-notes" rows="2" placeholder="Consultation hours, room number…"></textarea></div>
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <button class="btn btn-primary" style="flex:1" onclick="saveDoctor()">Save Doctor</button>
+        <button class="btn" onclick="closeModal('addDoctorModal')">Cancel</button>
+      </div>
+    </div>
+  </div>`;
+  loadDoctors();
+}
+
+async function loadDoctors() {
+  const res = await fetch('/api/doctors');
+  const doctors = await res.json();
+  const grid = document.getElementById('doctorGrid');
+  if (!doctors.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text2)">
+      <div style="font-size:48px;margin-bottom:12px">🩺</div>
+      <div style="font-size:16px;margin-bottom:6px">No doctors added yet</div>
+      <div style="font-size:13px;color:var(--text3)">Add your care team for quick access</div>
+    </div>`; return;
+  }
+  grid.innerHTML = doctors.map(d => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:20px;position:relative;transition:border-color 0.2s" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+      <button onclick="deleteDoctor(${d.id})" style="position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:4px" title="Remove">✕</button>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+        <div style="width:52px;height:52px;background:linear-gradient(135deg,var(--surface2),var(--surface3));border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">${specialtyIcon(d.specialty)}</div>
+        <div>
+          <div style="font-weight:600;font-size:15px">${d.name}</div>
+          <div style="color:var(--accent);font-size:12px;margin-top:2px">${d.specialty || '—'}</div>
+          ${d.hospital ? `<div style="color:var(--text3);font-size:11px;margin-top:1px">🏥 ${d.hospital}</div>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--text2);margin-bottom:14px">
+        ${d.phone ? `<div>📞 ${d.phone}</div>` : ''}
+        ${d.email ? `<div>✉️ ${d.email}</div>` : ''}
+        ${d.address ? `<div>📍 ${d.address}</div>` : ''}
+        ${d.notes ? `<div style="color:var(--text3);font-size:12px;margin-top:4px;padding-top:8px;border-top:1px solid var(--border)">📝 ${d.notes}</div>` : ''}
+      </div>
+      <div style="display:flex;gap:8px">
+        ${d.phone ? `
+          <a href="tel:${d.phone}" style="flex:1;text-align:center;background:rgba(0,229,160,0.1);color:var(--success);border:1px solid rgba(0,229,160,0.25);border-radius:var(--r);padding:8px;font-size:12px;font-weight:500;text-decoration:none;transition:background 0.2s" onmouseover="this.style.background='rgba(0,229,160,0.2)'" onmouseout="this.style.background='rgba(0,229,160,0.1)'">📞 Call</a>
+          <a href="sms:${d.phone}?body=Hello Dr. ${encodeURIComponent(d.name)}, I need to discuss my health." style="flex:1;text-align:center;background:rgba(0,153,255,0.1);color:var(--accent2);border:1px solid rgba(0,153,255,0.25);border-radius:var(--r);padding:8px;font-size:12px;font-weight:500;text-decoration:none;transition:background 0.2s" onmouseover="this.style.background='rgba(0,153,255,0.2)'" onmouseout="this.style.background='rgba(0,153,255,0.1)'">💬 Message</a>
+        ` : ''}
+        <button onclick="bookWithDoctor('${d.name.replace(/'/g,"\'")}','${(d.specialty||'').replace(/'/g,"\'")}','${(d.phone||'').replace(/'/g,"\'")}',${d.id})" style="flex:1;background:rgba(0,212,200,0.1);color:var(--accent);border:1px solid rgba(0,212,200,0.25);border-radius:var(--r);padding:8px;font-size:12px;font-weight:500;cursor:pointer;transition:background 0.2s" onmouseover="this.style.background='rgba(0,212,200,0.2)'" onmouseout="this.style.background='rgba(0,212,200,0.1)'">📅 Book</button>
+      </div>
+    </div>`).join('');
+}
+
+async function saveDoctor() {
+  const name = document.getElementById('dc-name').value.trim();
+  const phone = document.getElementById('dc-phone').value.trim();
+  if (!name || !phone) { showToast('Doctor name and phone are required','warn'); return; }
+  await fetch('/api/doctors',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    name, specialty: document.getElementById('dc-spec').value,
+    phone, email: document.getElementById('dc-email').value,
+    hospital: document.getElementById('dc-hospital').value,
+    address: document.getElementById('dc-address').value,
+    notes: document.getElementById('dc-notes').value
+  })});
+  closeModal('addDoctorModal');
+  showToast(`Dr. ${name} added ✓`);
+  loadDoctors();
+}
+
+async function deleteDoctor(id) {
+  if (!confirm('Remove this doctor?')) return;
+  await fetch(`/api/doctors/${id}`,{method:'DELETE'});
+  showToast('Doctor removed','warn');
+  loadDoctors();
+}
+
+function showAddDoctorModal() {
+  document.getElementById('addDoctorModal').style.display='flex';
+}
+
+function bookWithDoctor(name, specialty, phone, id) {
+  switchTab('appointments');
+  setTimeout(() => {
+    const el = document.getElementById('a-doctor');
+    if (el) { el.value = name; document.getElementById('a-spec').value = specialty; }
+  }, 300);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ─── EMERGENCY CONTACTS ──────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+async function renderEmergency() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `
+  <div class="page-header">
+    <div><div class="page-title">Emergency Contacts</div><div class="page-sub">Quick access when it matters most</div></div>
+    <button class="btn btn-primary" onclick="showAddContactModal()">+ Add Contact</button>
+  </div>
+  <div id="emergencyAlert"></div>
+
+  <!-- SOS Banner -->
+  <div style="background:linear-gradient(135deg,rgba(255,77,109,0.15),rgba(255,77,109,0.05));border:1px solid rgba(255,77,109,0.3);border-radius:var(--r2);padding:20px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:gap">
+    <div>
+      <div style="font-size:16px;font-weight:600;color:var(--danger);margin-bottom:4px">🚨 Emergency Services</div>
+      <div style="font-size:13px;color:var(--text2)">India national emergency numbers</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <a href="tel:112" style="background:var(--danger);color:#fff;border-radius:var(--r);padding:10px 18px;font-size:13px;font-weight:600;text-decoration:none;display:flex;align-items:center;gap:6px">📞 112 — All Emergency</a>
+      <a href="tel:108" style="background:rgba(255,77,109,0.15);color:var(--danger);border:1px solid rgba(255,77,109,0.4);border-radius:var(--r);padding:10px 18px;font-size:13px;font-weight:600;text-decoration:none">🚑 108 — Ambulance</a>
+      <a href="tel:102" style="background:rgba(255,77,109,0.15);color:var(--danger);border:1px solid rgba(255,77,109,0.4);border-radius:var(--r);padding:10px 18px;font-size:13px;font-weight:600;text-decoration:none">👶 102 — Women & Child</a>
+    </div>
+  </div>
+
+  <div id="contactsList"></div>
+
+  <!-- Add Contact Modal -->
+  <div id="addContactModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:18px;padding:28px;width:min(440px,90vw)">
+      <div style="font-size:17px;font-weight:600;margin-bottom:20px">Add Emergency Contact</div>
+      <div class="form-group"><label>Full Name *</label><input type="text" id="ec-name" placeholder="Parent / Spouse / Friend"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Relationship</label>
+          <select id="ec-rel">
+            <option>Spouse</option><option>Parent</option><option>Sibling</option>
+            <option>Child</option><option>Friend</option><option>Caregiver</option><option>Other</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Phone *</label><input type="tel" id="ec-phone" placeholder="+91 98765 43210"></div>
+      </div>
+      <div class="form-group"><label>Email</label><input type="email" id="ec-email" placeholder="email@example.com"></div>
+      <div class="form-group" style="display:flex;align-items:center;gap:10px">
+        <input type="checkbox" id="ec-primary" style="width:16px;height:16px;accent-color:var(--danger)">
+        <label for="ec-primary" style="margin:0;cursor:pointer">Set as primary emergency contact</label>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn btn-primary" style="flex:1;background:var(--danger);border-color:var(--danger)" onclick="saveContact()">Save Contact</button>
+        <button class="btn" onclick="closeModal('addContactModal')">Cancel</button>
+      </div>
+    </div>
+  </div>`;
+  loadContacts();
+}
+
+async function loadContacts() {
+  const res = await fetch('/api/emergency-contacts');
+  const contacts = await res.json();
+  const el = document.getElementById('contactsList');
+  if (!contacts.length) {
+    el.innerHTML = `<div style="text-align:center;padding:48px 20px;color:var(--text2)">
+      <div style="font-size:48px;margin-bottom:12px">🆘</div>
+      <div style="font-size:15px;margin-bottom:6px">No emergency contacts added</div>
+      <div style="font-size:13px;color:var(--text3)">Add people who should be contacted in an emergency</div>
+    </div>`; return;
+  }
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">` +
+  contacts.map(c => {
+    const relColors = {Spouse:'#ff6eb4',Parent:'#ffb347',Sibling:'#7c6fff',Child:'#00d4c8',Friend:'#00e5a0',Caregiver:'#0099ff'};
+    const color = relColors[c.relationship] || 'var(--text2)';
+    const initials = c.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    return `
+    <div style="background:var(--surface);border:1px solid ${c.is_primary?'rgba(255,77,109,0.35)':'var(--border)'};border-radius:var(--r2);padding:18px;position:relative">
+      ${c.is_primary ? `<div style="position:absolute;top:12px;right:12px;background:rgba(255,77,109,0.15);color:var(--danger);font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;border:1px solid rgba(255,77,109,0.3)">PRIMARY</div>` : `<button onclick="deleteContact(${c.id})" style="position:absolute;top:10px;right:10px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px">✕</button>`}
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div style="width:48px;height:48px;border-radius:12px;background:${color}22;border:1px solid ${color}44;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:16px;color:${color};flex-shrink:0">${initials}</div>
+        <div>
+          <div style="font-weight:600;font-size:15px">${c.name}</div>
+          <div style="font-size:12px;color:${color};margin-top:2px">${c.relationship}</div>
+          ${c.phone ? `<div style="font-size:12px;color:var(--text3);margin-top:1px">📞 ${c.phone}</div>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        ${c.phone ? `
+          <a href="tel:${c.phone}" style="flex:1;text-align:center;background:rgba(0,229,160,0.1);color:var(--success);border:1px solid rgba(0,229,160,0.25);border-radius:var(--r);padding:9px;font-size:12px;font-weight:600;text-decoration:none">📞 Call</a>
+          <a href="sms:${c.phone}?body=Hi ${encodeURIComponent(c.name)}, I need help. Here is my location: https://maps.google.com/?q=my+location" style="flex:1;text-align:center;background:rgba(0,153,255,0.1);color:var(--accent2);border:1px solid rgba(0,153,255,0.25);border-radius:var(--r);padding:9px;font-size:12px;font-weight:600;text-decoration:none">💬 SOS SMS</a>
+        ` : ''}
+        ${!c.is_primary ? `<button onclick="deleteContact(${c.id})" style="background:rgba(255,77,109,0.08);color:var(--danger);border:1px solid rgba(255,77,109,0.2);border-radius:var(--r);padding:9px 12px;font-size:12px;cursor:pointer">🗑</button>` : ''}
+      </div>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+async function saveContact() {
+  const name = document.getElementById('ec-name').value.trim();
+  const phone = document.getElementById('ec-phone').value.trim();
+  if (!name || !phone) { showToast('Name and phone are required','warn'); return; }
+  await fetch('/api/emergency-contacts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    name, relationship: document.getElementById('ec-rel').value,
+    phone, email: document.getElementById('ec-email').value,
+    is_primary: document.getElementById('ec-primary').checked ? 1 : 0
+  })});
+  closeModal('addContactModal');
+  showToast(`${name} added to emergency contacts ✓`);
+  loadContacts();
+}
+
+async function deleteContact(id) {
+  if (!confirm('Remove this contact?')) return;
+  await fetch(`/api/emergency-contacts/${id}`,{method:'DELETE'});
+  showToast('Contact removed','warn');
+  loadContacts();
+}
+
+function showAddContactModal() {
+  document.getElementById('addContactModal').style.display='flex';
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ─── NOTIFICATIONS / REMINDERS ───────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+async function renderNotifications() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `
+  <div class="page-header">
+    <div><div class="page-title">Reminders & Notifications</div><div class="page-sub">Daily summaries and health alerts</div></div>
+    <button class="btn btn-primary" onclick="triggerDailySummary()">📊 Generate Today's Summary</button>
+  </div>
+  <div id="notifList" style="display:flex;flex-direction:column;gap:10px;margin-top:4px"></div>`;
+  loadNotifications();
+}
+
+async function loadNotifications() {
+  const res = await fetch('/api/notifications');
+  const notifs = await res.json();
+  const el = document.getElementById('notifList');
+  if (!notifs.length) {
+    el.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--text2)">
+      <div style="font-size:48px;margin-bottom:12px">🔔</div>
+      <div style="font-size:15px;margin-bottom:6px">No notifications yet</div>
+      <div style="font-size:13px;color:var(--text3)">Generate a daily summary to get started</div>
+    </div>`; return;
+  }
+  const typeColors = {daily:'var(--accent)',medication:'var(--warning)',appointment:'var(--accent2)',alert:'var(--danger)'};
+  const typeIcons  = {daily:'📊',medication:'💊',appointment:'📅',alert:'🚨'};
+  el.innerHTML = notifs.map(n => {
+    const color = typeColors[n.type] || 'var(--accent)';
+    const icon  = typeIcons[n.type] || '🔔';
+    const when  = n.created_at ? new Date(n.created_at).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}) : '';
+    return `
+    <div style="background:var(--surface);border:1px solid var(--border);border-left:3px solid ${color};border-radius:var(--r2);padding:16px 18px;display:flex;gap:14px;align-items:flex-start">
+      <div style="width:36px;height:36px;background:${color}18;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${icon}</div>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:14px;margin-bottom:3px">${n.title}</div>
+        <div style="color:var(--text2);font-size:13px;line-height:1.6">${n.message}</div>
+        ${when ? `<div style="color:var(--text3);font-size:11px;margin-top:6px">🕐 ${when}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function triggerDailySummary() {
+  const res = await fetch('/api/notifications/daily-summary',{method:'POST'});
+  const d = await res.json();
+  showToast('Daily summary generated ✓','ok', 4000);
+  loadNotifications();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ─── MODAL HELPER ────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = 'none';
+}
+// Close modal on outside click
+document.addEventListener('click', e => {
+  ['addDoctorModal','addContactModal'].forEach(id => {
+    const modal = document.getElementById(id);
+    if (modal && e.target === modal) modal.style.display = 'none';
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════
+// ─── ENHANCED APPOINTMENTS ───────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
 
 // ─── Init ─────────────────────────────────────────────────────────────
 async function checkApiStatus() {
