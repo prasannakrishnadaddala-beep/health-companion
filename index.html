@@ -1,0 +1,2175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>HealthMate — Personal Health Companion</title>
+
+<!-- PWA Manifest -->
+<link rel="manifest" href="/static/manifest.json">
+
+<!-- Theme & status bar -->
+<meta name="theme-color" content="#00d4c8">
+<meta name="msapplication-TileColor" content="#060b14">
+<meta name="msapplication-TileImage" content="/static/icons/icon-144x144.png">
+
+<!-- iOS PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="HealthMate">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="152x152" href="/static/icons/icon-152x152.png">
+<link rel="apple-touch-icon" sizes="192x192" href="/static/icons/icon-192x192.png">
+
+<!-- Favicon -->
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192x192.png">
+<link rel="shortcut icon" href="/static/favicon.ico">
+
+<!-- SEO / share -->
+<meta name="description" content="Your personal AI health companion — track vitals, medications, diet and appointments.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="HealthMate">
+
+<!-- Safe-area insets for iPhone notch/Dynamic Island -->
+<style>
+  body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+  .sidebar { padding-top: max(16px, env(safe-area-inset-top)); }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Syne:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg: #060b14;
+  --bg2: #0d1525;
+  --bg3: #111d33;
+  --surface: #141f35;
+  --surface2: #1a2840;
+  --surface3: #1f3050;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --border3: rgba(255,255,255,0.18);
+  --text: #e8edf5;
+  --text2: #8a9ab8;
+  --text3: #4a5a78;
+  --accent: #00d4c8;
+  --accent2: #0099ff;
+  --accent3: #7c6fff;
+  --danger: #ff4d6d;
+  --warning: #ffb347;
+  --success: #00e5a0;
+  --pink: #ff6eb4;
+  --font: 'DM Sans', sans-serif;
+  --mono: 'DM Mono', monospace;
+  --display: 'Syne', sans-serif;
+  --r: 10px;
+  --r2: 14px;
+  --r3: 18px;
+  --glow: 0 0 20px rgba(0,212,200,0.15);
+  --glow2: 0 0 30px rgba(0,153,255,0.2);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+@keyframes slideIn { from { transform: translateX(60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+html { scroll-behavior: smooth; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 2px; }
+
+/* Layout */
+.shell { display: flex; min-height: 100vh; }
+.sidebar {
+  width: 230px; background: var(--bg2); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; padding: 0; position: fixed;
+  top: 0; left: 0; height: 100vh; z-index: 100;
+}
+.main { margin-left: 230px; flex: 1; padding: 28px 32px; min-height: 100vh; }
+
+/* Sidebar header */
+.sidebar-header {
+  padding: 22px 20px 18px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(0,212,200,0.05) 0%, transparent 100%);
+}
+.logo-row { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.logo-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 12px rgba(0,212,200,0.3);
+}
+.logo-icon svg { width: 18px; height: 18px; }
+.logo-title { font-family: var(--display); font-size: 17px; font-weight: 700; color: var(--text); }
+.logo-sub { font-size: 11px; color: var(--text3); margin-left: 46px; }
+
+/* Nav */
+.nav-section { padding: 14px 12px 6px; }
+.nav-label { font-size: 10px; font-weight: 600; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; padding: 0 8px; margin-bottom: 4px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 9px 10px;
+  border-radius: var(--r); cursor: pointer; font-size: 13px; color: var(--text2);
+  transition: all 0.2s; margin-bottom: 2px; position: relative;
+}
+.nav-item:hover { background: var(--surface); color: var(--text); }
+.nav-item.active { background: rgba(0,212,200,0.1); color: var(--accent); }
+.nav-item.active::before {
+  content: ''; position: absolute; left: 0; top: 20%; bottom: 20%;
+  width: 3px; border-radius: 0 2px 2px 0; background: var(--accent);
+}
+.nav-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; background: rgba(255,255,255,0.04); }
+.nav-item.active .nav-icon { background: rgba(0,212,200,0.15); }
+.nav-badge { margin-left: auto; background: var(--danger); color: white; font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 600; min-width: 18px; text-align: center; }
+.nav-badge.hidden { display: none; }
+
+/* Sidebar footer */
+.sidebar-footer {
+  margin-top: auto; padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+}
+.status-dot { display: flex; align-items: center; gap: 6px; color: var(--text3); }
+.dot-pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+@keyframes heartbeat { 0%,100%{transform:scale(1)} 15%{transform:scale(1.18)} 30%{transform:scale(1)} 45%{transform:scale(1.1)} 60%{transform:scale(1)} }
+@keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+@keyframes countUp { from{opacity:0;transform:scale(0.8)} to{opacity:1;transform:scale(1)} }
+.heartbeat-anim { animation: heartbeat 1.4s ease infinite; display:inline-block; }
+.stat-card { animation: fadeIn 0.4s ease both; }
+.stat-card:nth-child(1){animation-delay:0.05s}
+.stat-card:nth-child(2){animation-delay:0.1s}
+.stat-card:nth-child(3){animation-delay:0.15s}
+.stat-card:nth-child(4){animation-delay:0.2s}
+.stat-value { animation: countUp 0.5s ease both; }
+
+/* Page header */
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+.page-title { font-family: var(--display); font-size: 24px; font-weight: 700; color: var(--text); line-height: 1.2; }
+.page-sub { font-size: 13px; color: var(--text3); margin-top: 3px; }
+.header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* Cards */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r2); padding: 18px 20px;
+}
+.card:hover { border-color: var(--border2); }
+.card-title { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 16px; }
+
+/* Stat cards */
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r2); padding: 16px 18px; position: relative; overflow: hidden;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.stat-card.c-teal::before { background: linear-gradient(90deg, var(--accent), transparent); }
+.stat-card.c-blue::before { background: linear-gradient(90deg, var(--accent2), transparent); }
+.stat-card.c-red::before { background: linear-gradient(90deg, var(--danger), transparent); }
+.stat-card.c-yellow::before { background: linear-gradient(90deg, var(--warning), transparent); }
+.stat-card.c-green::before { background: linear-gradient(90deg, var(--success), transparent); }
+.stat-card.c-purple::before { background: linear-gradient(90deg, var(--accent3), transparent); }
+.stat-label { font-size: 11px; color: var(--text3); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+.stat-value { font-family: var(--mono); font-size: 30px; font-weight: 500; margin: 6px 0 2px; line-height: 1; }
+.stat-unit { font-size: 12px; color: var(--text3); }
+.stat-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 3px 8px; border-radius: 20px; margin-top: 8px; font-weight: 500; }
+.badge-ok { background: rgba(0,229,160,0.12); color: var(--success); border: 1px solid rgba(0,229,160,0.2); }
+.badge-warn { background: rgba(255,179,71,0.12); color: var(--warning); border: 1px solid rgba(255,179,71,0.2); }
+.badge-err { background: rgba(255,77,109,0.12); color: var(--danger); border: 1px solid rgba(255,77,109,0.2); }
+
+/* Buttons */
+.btn {
+  padding: 8px 16px; border-radius: var(--r); border: 1px solid var(--border2);
+  background: var(--surface2); color: var(--text); cursor: pointer;
+  font-size: 13px; font-family: var(--font); font-weight: 500;
+  transition: all 0.15s; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
+}
+.btn:hover { background: var(--surface3); border-color: var(--border3); }
+.btn-primary { background: linear-gradient(135deg, var(--accent), #00b8ad); color: #001a1a; border: none; font-weight: 600; box-shadow: 0 4px 12px rgba(0,212,200,0.25); }
+.btn-primary:hover { box-shadow: 0 6px 20px rgba(0,212,200,0.4); transform: translateY(-1px); }
+.btn-blue { background: linear-gradient(135deg, var(--accent2), #0077cc); color: white; border: none; box-shadow: 0 4px 12px rgba(0,153,255,0.25); }
+.btn-blue:hover { box-shadow: 0 6px 20px rgba(0,153,255,0.4); transform: translateY(-1px); }
+.btn-danger { background: rgba(255,77,109,0.1); color: var(--danger); border-color: rgba(255,77,109,0.3); }
+.btn-danger:hover { background: rgba(255,77,109,0.2); }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-icon { padding: 6px 8px; background: transparent; border: none; cursor: pointer; color: var(--text3); font-size: 15px; border-radius: 6px; transition: all 0.15s; }
+.btn-icon:hover { background: var(--surface2); color: var(--text); }
+.btn-strava { background: linear-gradient(135deg, #fc4c02, #e83f00); color: white; border: none; box-shadow: 0 4px 12px rgba(252,76,2,0.3); }
+
+/* Forms */
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 11px; font-weight: 600; color: var(--text3); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%; padding: 9px 12px; border: 1px solid var(--border2);
+  border-radius: var(--r); background: var(--bg3); color: var(--text);
+  font-size: 13px; font-family: var(--font); transition: all 0.15s;
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,212,200,0.1);
+}
+.form-group select option { background: var(--surface); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+/* Grids */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+
+/* Alert banners */
+.alert { padding: 12px 16px; border-radius: var(--r); font-size: 13px; display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.alert-warn { background: rgba(255,179,71,0.08); color: var(--warning); border: 1px solid rgba(255,179,71,0.2); }
+.alert-info { background: rgba(0,153,255,0.08); color: #66bbff; border: 1px solid rgba(0,153,255,0.2); }
+.alert-success { background: rgba(0,229,160,0.08); color: var(--success); border: 1px solid rgba(0,229,160,0.2); }
+.alert-danger { background: rgba(255,77,109,0.08); color: var(--danger); border: 1px solid rgba(255,77,109,0.2); }
+
+/* Chat */
+.chat-container { display: flex; flex-direction: column; height: calc(100vh - 160px); max-height: 720px; }
+.chat-messages {
+  flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r2) var(--r2) 0 0;
+}
+.msg { display: flex; gap: 10px; align-items: flex-start; max-width: 80%; animation: fadeUp 0.2s ease; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+.msg.user { align-self: flex-end; flex-direction: row-reverse; }
+.msg-avatar { width: 32px; height: 32px; border-radius: 10px; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.msg-avatar.ai { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: var(--bg); font-family: var(--display); }
+.msg-avatar.user { background: var(--surface3); color: var(--text2); }
+.msg-bubble { padding: 11px 15px; border-radius: 14px; font-size: 14px; line-height: 1.6; }
+.msg.ai .msg-bubble { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px 14px 14px 14px; }
+.msg.user .msg-bubble { background: linear-gradient(135deg, rgba(0,212,200,0.15), rgba(0,153,255,0.15)); border: 1px solid rgba(0,212,200,0.2); border-radius: 14px 4px 14px 14px; }
+.msg-time { font-size: 10px; color: var(--text3); margin-top: 4px; }
+.chat-footer { background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 var(--r2) var(--r2); padding: 14px 16px; }
+.quick-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.chip { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border2); background: var(--bg3); font-size: 12px; cursor: pointer; color: var(--text2); transition: all 0.15s; }
+.chip:hover { background: rgba(0,212,200,0.1); color: var(--accent); border-color: rgba(0,212,200,0.3); }
+.chat-input-row { display: flex; gap: 10px; }
+.chat-input { flex: 1; padding: 11px 16px; border: 1px solid var(--border2); border-radius: 24px; background: var(--bg3); color: var(--text); font-size: 14px; font-family: var(--font); transition: all 0.15s; }
+.chat-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,212,200,0.1); }
+.send-btn { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: var(--bg); border: none; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; box-shadow: 0 4px 12px rgba(0,212,200,0.3); }
+.send-btn:hover { transform: scale(1.05); box-shadow: 0 6px 18px rgba(0,212,200,0.4); }
+
+/* Chart */
+.chart-wrap { position: relative; width: 100%; }
+
+/* Records */
+.record-item { display: flex; align-items: flex-start; gap: 14px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r2); margin-bottom: 10px; transition: border-color 0.15s; }
+.record-item:hover { border-color: var(--border2); }
+.record-icon { width: 40px; height: 40px; border-radius: var(--r); background: rgba(0,153,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; border: 1px solid rgba(0,153,255,0.2); }
+.record-name { font-size: 14px; font-weight: 500; color: var(--text); }
+.record-date { font-size: 12px; color: var(--text3); margin-top: 2px; }
+.record-analysis { font-size: 13px; color: var(--text2); margin-top: 8px; line-height: 1.6; background: var(--bg3); padding: 10px 12px; border-radius: var(--r); border-left: 2px solid var(--accent2); }
+
+/* Medications */
+.med-item { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r2); margin-bottom: 8px; transition: all 0.15s; }
+.med-item:hover { border-color: var(--border2); background: var(--surface2); }
+.med-dot-ring { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 2px solid; }
+.med-name { font-size: 14px; font-weight: 500; color: var(--text); }
+.med-detail { font-size: 12px; color: var(--text3); margin-top: 2px; }
+.med-doses { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.dose-chip { display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; font-size: 12px; border: 1px solid; cursor: pointer; transition: all 0.15s; font-family: var(--mono); }
+.dose-chip.taken { background: rgba(0,229,160,0.08); color: var(--success); border-color: rgba(0,229,160,0.25); }
+.dose-chip.due { background: rgba(255,179,71,0.08); color: var(--warning); border-color: rgba(255,179,71,0.25); }
+.dose-chip:hover { transform: scale(1.04); }
+
+/* Appointments */
+.appt-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r2); padding: 16px 18px; margin-bottom: 10px; display: flex; gap: 16px; align-items: flex-start; transition: all 0.15s; }
+.appt-card:hover { border-color: var(--border2); background: var(--surface2); }
+.appt-date-box { min-width: 56px; text-align: center; background: rgba(0,153,255,0.1); border-radius: var(--r); padding: 10px 6px; border: 1px solid rgba(0,153,255,0.2); }
+.appt-day { font-family: var(--mono); font-size: 26px; font-weight: 500; color: var(--accent2); line-height: 1; }
+.appt-month { font-size: 11px; color: var(--text3); font-weight: 500; margin-top: 2px; }
+.appt-doctor { font-size: 15px; font-weight: 600; color: var(--text); }
+.appt-specialty { font-size: 12px; color: var(--text3); }
+.appt-meta { display: flex; gap: 14px; margin-top: 6px; font-size: 12px; color: var(--text3); flex-wrap: wrap; }
+.appt-completed { opacity: 0.45; }
+
+/* Cycle */
+.cycle-card { background: rgba(255,110,180,0.06); border: 1px solid rgba(255,110,180,0.15); border-radius: var(--r2); padding: 16px; margin-bottom: 16px; }
+
+/* Misc */
+.divider { height: 1px; background: var(--border); margin: 16px 0; }
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.hidden { display: none !important; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+
+/* Upload zone */
+.upload-zone { border: 1px dashed var(--border2); border-radius: var(--r2); padding: 32px; text-align: center; cursor: pointer; transition: all 0.2s; }
+.upload-zone:hover { border-color: var(--accent); background: rgba(0,212,200,0.04); }
+
+/* Progress bars */
+.prog-bar { background: var(--surface3); border-radius: 4px; height: 5px; overflow: hidden; margin-top: 8px; }
+.prog-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+
+/* Metrics */
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.metric-box { background: var(--bg3); border-radius: var(--r); padding: 12px; text-align: center; border: 1px solid var(--border); }
+.metric-val { font-family: var(--mono); font-size: 22px; font-weight: 500; margin-bottom: 3px; }
+.metric-lbl { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* Loading overlay */
+#loadingOverlay { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 9999; flex-direction: column; gap: 16px; }
+#loadingOverlay.hidden { display: none; }
+.loading-logo { font-family: var(--display); font-size: 28px; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.loading-bar { width: 200px; height: 2px; background: var(--surface2); border-radius: 1px; overflow: hidden; }
+.loading-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 1px; animation: loading 1.5s ease infinite; }
+@keyframes loading { 0%{width:0%;margin-left:0} 50%{width:60%;margin-left:20%} 100%{width:0%;margin-left:100%} }
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .sidebar { width: 64px; }
+  .sidebar .nav-item span:not(.nav-icon) { display: none; }
+  .sidebar-header .logo-title, .sidebar-header .logo-sub { display: none; }
+  .sidebar-footer .status-dot span { display: none; }
+  .main { margin-left: 64px; padding: 16px; }
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div id="loadingOverlay">
+  <div class="loading-logo">HealthMate</div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+  <div style="font-size:13px;color:var(--text3)">Loading your health dashboard…</div>
+</div>
+
+<div class="shell">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-row">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--bg)" stroke-width="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <div class="logo-title">HealthMate</div>
+      </div>
+      <div class="logo-sub" id="sidebarDate"></div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Main</div>
+      <div class="nav-item active" data-tab="chat" onclick="switchTab('chat')">
+        <div class="nav-icon">💬</div><span>AI Chat</span>
+      </div>
+      <div class="nav-item" data-tab="vitals" onclick="switchTab('vitals')">
+        <div class="nav-icon">❤️</div><span>Vitals</span>
+      </div>
+      <div class="nav-item" data-tab="medications" onclick="switchTab('medications')">
+        <div class="nav-icon">💊</div><span>Medications</span>
+        <span class="nav-badge hidden" id="medBadge">0</span>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Health</div>
+      <div class="nav-item" data-tab="records" onclick="switchTab('records')">
+        <div class="nav-icon">📋</div><span>Records</span>
+      </div>
+      <div class="nav-item" data-tab="cycle" onclick="switchTab('cycle')">
+        <div class="nav-icon">🌸</div><span>Cycle</span>
+      </div>
+      <div class="nav-item" data-tab="diet" onclick="switchTab('diet')">
+        <div class="nav-icon">🥗</div><span>Diet</span>
+      </div>
+      <div class="nav-item" data-tab="appointments" onclick="switchTab('appointments')">
+        <div class="nav-icon">📅</div><span>Appointments</span>
+        <span class="nav-badge hidden" id="apptBadge">0</span>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Care</div>
+      <div class="nav-item" data-tab="doctors" onclick="switchTab('doctors')">
+        <div class="nav-icon">🩺</div><span>My Doctors</span>
+      </div>
+      <div class="nav-item" data-tab="emergency" onclick="switchTab('emergency')">
+        <div class="nav-icon">🆘</div><span>Emergency</span>
+      </div>
+      <div class="nav-item" data-tab="notifications" onclick="switchTab('notifications')">
+        <div class="nav-icon">🔔</div><span>Reminders</span>
+        <span class="nav-badge hidden" id="notifBadge">0</span>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Account</div>
+      <div class="nav-item" data-tab="profile" onclick="switchTab('profile')">
+        <div class="nav-icon">👤</div><span>My Profile</span>
+      </div>
+      <div class="nav-item" onclick="window.location='/register'">
+        <div class="nav-icon">👨‍👩‍👧</div><span>Family Accounts</span>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="status-dot">
+        <div class="dot-pulse"></div>
+        <span id="apiStatusDot" style="font-size:11px;color:var(--text3)">Connected</span>
+      </div>
+      <a href="/logout" style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;color:var(--text3);text-decoration:none;padding:6px 0;transition:color 0.15s" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text3)'">
+        <span>⏻</span> Sign out
+      </a>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="main" id="mainContent"></div>
+</div>
+
+<script>
+
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('sidebarDate').textContent = new Date().toLocaleDateString('en-IN', {day:'numeric',month:'short'});
+
+let vitalsChart = null;
+
+// ─── Tab Router ─────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.tab === tab));
+  const main = document.getElementById('mainContent');
+  main.innerHTML = '';
+  if (tab === 'chat') renderChat();
+  else if (tab === 'vitals') renderVitals();
+  else if (tab === 'medications') renderMedications();
+  else if (tab === 'records') renderRecords();
+  else if (tab === 'cycle') renderCycle();
+  else if (tab === 'diet') renderDiet();
+  else if (tab === 'appointments') renderAppointments();
+  else if (tab === 'profile') renderProfile();
+  else if (tab === 'doctors') renderDoctors();
+  else if (tab === 'emergency') renderEmergency();
+  else if (tab === 'notifications') renderNotifications();
+}
+
+// ─── CHAT ────────────────────────────────────────────────────────────
+async function renderChat() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">AI Health Chat</div><div class="page-sub">Ask anything about your health, medications, or records</div></div>
+      <button class="btn btn-sm" onclick="clearChat()">Clear history</button>
+    </div>
+    <div class="chat-container">
+      <div class="chat-messages" id="chatMsgs"><div style="text-align:center;color:var(--muted);font-size:13px;padding:20px">Loading conversation…</div></div>
+      <div class="chat-footer">
+        <div class="quick-chips">
+          <div class="chip" onclick="quickMsg('How are my vitals looking today?')">Today's vitals</div>
+          <div class="chip" onclick="quickMsg('What medications do I need to take today?')">My medications</div>
+          <div class="chip" onclick="quickMsg('Give me healthy eating tips for today')">Diet tips</div>
+          <div class="chip" onclick="quickMsg('Do I have any upcoming doctor appointments?')">Appointments</div>
+          <div class="chip" onclick="quickMsg('I have a headache, what should I do?')">I have a headache</div>
+          <div class="chip" onclick="quickMsg('What does my health record say?')">My records</div>
+        </div>
+        <div class="chat-input-row">
+          <input class="chat-input" id="chatInput" placeholder="Type a message…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}">
+          <button class="send-btn" onclick="sendChat()">➤</button>
+        </div>
+      </div>
+    </div>`;
+  loadChatHistory();
+}
+
+async function loadChatHistory() {
+  const res = await fetch('/api/chat/history');
+  const msgs = await res.json();
+  const container = document.getElementById('chatMsgs');
+  if (!container) return;
+  if (msgs.length === 0) {
+    container.innerHTML = `<div class="msg ai"><div class="msg-avatar ai">AI</div><div><div class="msg-bubble">Hello! I'm your personal health companion. I can see your vitals, medications, records, and appointments. How are you feeling today? 💙</div></div></div>`;
+  } else {
+    container.innerHTML = msgs.map(m => msgHTML(m.role === 'assistant' ? 'ai' : 'user', m.content, m.timestamp)).join('');
+  }
+  container.scrollTop = container.scrollHeight;
+}
+
+function msgHTML(role, content, time) {
+  const t = time ? new Date(time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '';
+  return `<div class="msg ${role}">
+    <div class="msg-avatar ${role}">${role === 'ai' ? 'AI' : 'You'}</div>
+    <div><div class="msg-bubble">${content.replace(/\n/g,'<br>')}</div>${t?`<div class="msg-time">${t}</div>`:''}</div>
+  </div>`;
+}
+
+function quickMsg(text) {
+  document.getElementById('chatInput').value = text;
+  sendChat();
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const text = input?.value.trim();
+  if (!text) return;
+  input.value = '';
+  const container = document.getElementById('chatMsgs');
+  container.innerHTML += msgHTML('user', text, new Date().toISOString());
+  const typing = document.createElement('div');
+  typing.id = 'typing'; typing.className = 'msg ai';
+  typing.innerHTML = `<div class="msg-avatar ai">AI</div><div class="msg-bubble"><span class="spinner"></span>Thinking…</div>`;
+  container.appendChild(typing);
+  container.scrollTop = container.scrollHeight;
+
+  const res = await fetch('/api/chat', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text})});
+  const data = await res.json();
+  document.getElementById('typing')?.remove();
+  container.innerHTML += msgHTML('ai', data.reply || 'Sorry, something went wrong.', new Date().toISOString());
+  container.scrollTop = container.scrollHeight;
+}
+
+async function clearChat() {
+  if (!confirm('Clear all chat history?')) return;
+  await fetch('/api/chat/clear', {method:'POST'});
+  loadChatHistory();
+}
+
+// ─── VITALS ─────────────────────────────────────────────────────────
+async function renderVitals() {
+  const gfRes = await fetch('/api/googlefit/status');
+  const gfStatus = await gfRes.json();
+  const gfConnected = gfStatus.authenticated;
+  document.getElementById('mainContent').innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Vitals Tracker</div><div class="page-sub">Monitor oxygen, heart rate, blood pressure & temperature</div></div>
+      <div class="header-actions">
+        ${gfConnected
+          ? `<button class="btn btn-primary" onclick="syncGoogleFit()" id="syncBtn">📱 Sync from Watch</button>`
+          : `<a href="/googlefit-setup" target="_blank"><button class="btn">🔗 Connect Fastrack Watch</button></a>`
+        }
+      </div>
+    </div>
+    <div id="syncStatus"></div>
+    <div id="vitalsTop"></div>
+    <div class="grid-2" style="margin-bottom:20px">
+      <div class="card">
+        <div class="card-title">Log New Reading</div>
+        <div class="form-row"><div class="form-group"><label>O2 Saturation (%)</label><input type="number" id="v-o2" min="70" max="100" placeholder="98"></div>
+        <div class="form-group"><label>Heart Rate (bpm)</label><input type="number" id="v-hr" min="30" max="220" placeholder="72"></div></div>
+        <div class="form-row"><div class="form-group"><label>BP Systolic (mmHg)</label><input type="number" id="v-bps" placeholder="120"></div>
+        <div class="form-group"><label>BP Diastolic (mmHg)</label><input type="number" id="v-bpd" placeholder="80"></div></div>
+        <div class="form-row"><div class="form-group"><label>Temperature (°F)</label><input type="number" id="v-temp" step="0.1" placeholder="98.6"></div>
+        <div class="form-group"><label>Notes</label><input type="text" id="v-notes" placeholder="Optional"></div></div>
+        <button class="btn btn-primary" onclick="logVital()">Save Reading</button>
+      </div>
+      <div class="card">
+        <div class="card-title">O2 & Heart Rate — Today</div>
+        <div class="chart-wrap" style="height:200px"><canvas id="vitalsChart"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Recent Readings</div>
+      <div id="vitalsList"></div>
+    </div>`;
+  loadVitals();
+}
+
+async function loadVitals() {
+  const res = await fetch('/api/vitals');
+  const data = await res.json();
+
+  // Latest stats
+  const last = data[0];
+  const topEl = document.getElementById('vitalsTop');
+  if (last) {
+    const o2s = last.oxygen >= 95 ? 'ok' : last.oxygen >= 90 ? 'warn' : 'err';
+    const hrs = (last.heart_rate >= 60 && last.heart_rate <= 100) ? 'ok' : 'warn';
+    const ts = last.temperature <= 99 ? 'ok' : last.temperature <= 100.4 ? 'warn' : 'err';
+    const bpLabel = last.bp_sys && last.bp_dia ? `${last.bp_sys}/${last.bp_dia}` : '—';
+    const lastTime = last.timestamp ? `Updated ${last.timestamp.slice(11,16)}` : '';
+    topEl.innerHTML = `<div class="grid-4" style="margin-bottom:20px">
+      <div class="stat-card c-teal">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="stat-label">O₂ Saturation</div>
+          <div style="font-size:18px">🫁</div>
+        </div>
+        <div class="stat-value" style="color:var(--accent);font-size:42px">${last.oxygen || '—'}</div>
+        <div class="stat-unit">percent</div>
+        <span class="stat-badge badge-${o2s}">${o2s==='ok'?'✓ Normal':o2s==='warn'?'⚠ Low':'⛔ Critical'}</span>
+        <div style="font-size:10px;color:var(--text3);margin-top:6px">${lastTime}</div>
+      </div>
+      <div class="stat-card c-red">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="stat-label">Heart Rate</div>
+          <div class="heartbeat-anim" style="font-size:18px">❤️</div>
+        </div>
+        <div class="stat-value" style="color:var(--danger);font-size:42px">${last.heart_rate || '—'}</div>
+        <div class="stat-unit">bpm</div>
+        <span class="stat-badge badge-${hrs}">${hrs==='ok'?'✓ Normal':'⚠ Check'}</span>
+        <div style="font-size:10px;color:var(--text3);margin-top:6px">${lastTime}</div>
+      </div>
+      <div class="stat-card c-blue">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="stat-label">Blood Pressure</div>
+          <div style="font-size:18px">🩸</div>
+        </div>
+        <div class="stat-value" style="color:var(--accent2);font-size:${bpLabel.length > 5 ? '24px' : '36px'}">${bpLabel}</div>
+        <div class="stat-unit">mmHg (sys/dia)</div>
+        <span class="stat-badge badge-ok">${last.bp_sys ? '✓ Normal' : '— No data'}</span>
+        <div style="font-size:10px;color:var(--text3);margin-top:6px">${lastTime}</div>
+      </div>
+      <div class="stat-card c-yellow">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="stat-label">Temperature</div>
+          <div style="font-size:18px">🌡️</div>
+        </div>
+        <div class="stat-value" style="color:var(--warning);font-size:42px">${last.temperature || '—'}</div>
+        <div class="stat-unit">°F</div>
+        <span class="stat-badge badge-${ts}">${ts==='ok'?'✓ Normal':ts==='warn'?'⚠ Mild fever':'⛔ High fever'}</span>
+        <div style="font-size:10px;color:var(--text3);margin-top:6px">${lastTime}</div>
+      </div>
+    </div>`;
+  } else {
+    topEl.innerHTML = `<div class="alert alert-info" style="margin-bottom:20px">No vitals recorded yet. Log your first reading below or sync from your watch.</div>`;
+  }
+
+  // Chart
+  const chartData = data.slice(0, 10).reverse();
+  const ctx = document.getElementById('vitalsChart');
+  if (ctx && chartData.length) {
+    if (vitalsChart) { vitalsChart.destroy(); vitalsChart = null; }
+    vitalsChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: chartData.map(v => v.timestamp.slice(11,16)),
+        datasets: [
+          { label: 'O2 %', data: chartData.map(v => v.oxygen), borderColor: '#00d4c8', backgroundColor: 'rgba(0,212,200,0.08)', tension: 0.4, pointRadius: 4 },
+          { label: 'Heart Rate', data: chartData.map(v => v.heart_rate), borderColor: '#ff4d6d', backgroundColor: 'rgba(255,77,109,0.08)', tension: 0.4, pointRadius: 4 }
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#8a9ab8', font: { size: 11 } } } }, scales: { y: { min: 50, max: 120, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#4a5a78', font: { size: 10 } } }, x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#4a5a78', font: { size: 10 }, autoSkip: false, maxRotation: 0 } } } }
+    });
+  }
+
+  // Table
+  const listEl = document.getElementById('vitalsList');
+  if (!data.length) { listEl.innerHTML = '<p style="color:var(--muted);font-size:13px">No readings yet. Log your first reading above.</p>'; return; }
+  listEl.innerHTML = `<table style="width:100%;font-size:13px;border-collapse:collapse">
+    <thead><tr style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.05em">${['Time','O2 %','HR (bpm)','BP','Temp °F','Notes'].map(h=>`<th style="padding:6px 10px;text-align:left;font-weight:500">${h}</th>`).join('')}</tr></thead>
+    <tbody>${data.map(v=>`<tr style="border-top:1px solid var(--border)">
+      <td style="padding:8px 10px;color:var(--muted)">${v.timestamp}</td>
+      <td style="padding:8px 10px;font-weight:500;color:${v.oxygen<95?'var(--danger)':'var(--success)'}">${v.oxygen||'—'}</td>
+      <td style="padding:8px 10px">${v.heart_rate||'—'}</td>
+      <td style="padding:8px 10px">${v.bp_sys&&v.bp_dia?v.bp_sys+'/'+v.bp_dia:'—'}</td>
+      <td style="padding:8px 10px;color:${v.temperature>99.5?'var(--warning)':'inherit'}">${v.temperature||'—'}</td>
+      <td style="padding:8px 10px;color:var(--muted)">${v.notes||''}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+async function logVital() {
+  const o2 = document.getElementById('v-o2').value;
+  const hr = document.getElementById('v-hr').value;
+  const bps = document.getElementById('v-bps').value;
+  const bpd = document.getElementById('v-bpd').value;
+  const temp = document.getElementById('v-temp').value;
+  const notes = document.getElementById('v-notes').value;
+  await fetch('/api/vitals', {method:'POST',headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({oxygen:o2||null, heart_rate:hr||null, bp_sys:bps||null, bp_dia:bpd||null, temperature:temp||null, notes})});
+  loadVitals();
+}
+
+// ─── MEDICATIONS ──────────────────────────────────────────────────────
+async function renderMedications() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Medications</div><div class="page-sub">Track doses and mark as taken for today</div></div>
+    </div>
+    <div id="medAlert"></div>
+    <div id="medList"></div>
+    <div class="divider"></div>
+    <div class="card">
+      <div class="card-title">Add New Medication</div>
+      <div class="form-row"><div class="form-group"><label>Medication Name</label><input type="text" id="m-name" placeholder="e.g. Aspirin"></div>
+      <div class="form-group"><label>Dose</label><input type="text" id="m-dose" placeholder="e.g. 81mg"></div></div>
+      <div class="form-row"><div class="form-group"><label>Frequency</label><input type="text" id="m-freq" placeholder="e.g. Once daily"></div>
+      <div class="form-group"><label>Color</label><select id="m-color"><option value="#2563eb">Blue</option><option value="#16a34a">Green</option><option value="#7c3aed">Purple</option><option value="#db2777">Pink</option><option value="#d97706">Orange</option><option value="#dc2626">Red</option></select></div></div>
+      <div id="timesContainer"><div class="form-group"><label>Time 1</label><input type="time" class="med-time-input" value="09:00"></div></div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="btn btn-sm" onclick="addTimeField()">+ Add another time</button>
+      </div>
+      <button class="btn btn-primary" onclick="addMedication()">Add Medication</button>
+    </div>`;
+  loadMedications();
+}
+
+async function loadMedications() {
+  const res = await fetch('/api/medications');
+  const meds = await res.json();
+  const due = meds.filter(m => m.taken.includes(false));
+  const badge = document.getElementById('medBadge');
+  if (due.length > 0) { badge.textContent = due.length; badge.classList.remove('hidden'); }
+  else badge.classList.add('hidden');
+
+  const alertEl = document.getElementById('medAlert');
+  alertEl.innerHTML = due.length
+    ? `<div class="alert alert-warn">⚠️ ${due.length} medication${due.length>1?'s':''} pending today: ${due.map(m=>m.name).join(', ')}</div>`
+    : `<div class="alert alert-success">✅ All medications taken for today!</div>`;
+
+  const listEl = document.getElementById('medList');
+  if (!meds.length) { listEl.innerHTML = '<p style="color:var(--muted);font-size:13px">No medications added yet.</p>'; return; }
+  listEl.innerHTML = meds.map(m => `
+    <div class="med-item">
+      <div class="med-dot" style="background:${m.color}"></div>
+      <div class="med-info">
+        <div class="med-name">${m.name} <span style="font-size:12px;font-weight:400;color:var(--muted)">${m.dose}</span></div>
+        <div class="med-detail">${m.frequency}</div>
+        <div class="med-doses" style="margin-top:6px">
+          ${m.times.map((t,i) => `<div class="dose-chip ${m.taken[i]?'taken':'due'}" onclick="toggleDose(${m.id},${i},${!m.taken[i]})">
+            ${m.taken[i]?'✓':''} ${t}
+          </div>`).join('')}
+        </div>
+      </div>
+      <button class="btn-icon" onclick="deleteMed(${m.id})" title="Remove">🗑</button>
+    </div>`).join('');
+}
+
+function addTimeField() {
+  const c = document.getElementById('timesContainer');
+  const n = c.children.length + 1;
+  const div = document.createElement('div'); div.className = 'form-group';
+  div.innerHTML = `<label>Time ${n}</label><input type="time" class="med-time-input" value="20:00">`;
+  c.appendChild(div);
+}
+
+async function addMedication() {
+  const name = document.getElementById('m-name').value.trim();
+  if (!name) return alert('Please enter a medication name');
+  const times = [...document.querySelectorAll('.med-time-input')].map(i => i.value);
+  await fetch('/api/medications', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    name, dose: document.getElementById('m-dose').value,
+    frequency: document.getElementById('m-freq').value,
+    times, color: document.getElementById('m-color').value
+  })});
+  renderMedications();
+}
+
+async function toggleDose(medId, doseIdx, taken) {
+  await fetch('/api/medications/log', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({med_id:medId,dose_index:doseIdx,taken})});
+  loadMedications();
+}
+
+async function deleteMed(id) {
+  if (!confirm('Remove this medication?')) return;
+  await fetch(`/api/medications/${id}`, {method:'DELETE'});
+  renderMedications();
+}
+
+// ─── RECORDS ──────────────────────────────────────────────────────────
+async function renderRecords() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Health Records</div><div class="page-sub">Upload and AI-analyze lab reports, prescriptions & discharge summaries</div></div>
+    </div>
+    <label for="fileInput">
+      <div class="upload-zone" id="uploadZone">
+        <div style="font-size:40px;margin-bottom:10px">📁</div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:6px">Drop files here or click to upload</div>
+        <div style="font-size:13px;color:var(--muted)">Supported: PDF, PNG, JPG, TXT · Max 16MB per file</div>
+      </div>
+    </label>
+    <input type="file" id="fileInput" style="display:none" accept=".pdf,.txt,.png,.jpg,.jpeg" onchange="uploadRecord(this)">
+    <div id="uploadProgress" class="hidden">
+      <div class="alert alert-info"><span class="spinner"></span>Uploading and analyzing with AI…</div>
+    </div>
+    <div id="recordsList" style="margin-top:16px"></div>`;
+  loadRecords();
+}
+
+async function loadRecords() {
+  const res = await fetch('/api/records');
+  const records = await res.json();
+  const el = document.getElementById('recordsList');
+  if (!records.length) { el.innerHTML = '<p style="color:var(--muted);font-size:13px">No records uploaded yet.</p>'; return; }
+  const icons = {pdf:'📄', png:'🖼', jpg:'🖼', jpeg:'🖼', txt:'📝'};
+  el.innerHTML = records.map(r => `
+    <div class="record-item">
+      <div class="record-icon">${icons[r.file_type]||'📎'}</div>
+      <div style="flex:1">
+        <div class="record-name">${r.original_name}</div>
+        <div class="record-date">${new Date(r.uploaded_at).toLocaleString()}</div>
+        ${r.analysis ? `<div class="record-analysis">${r.analysis}</div>` : ''}
+      </div>
+      <button class="btn-icon" onclick="deleteRecord(${r.id})">🗑</button>
+    </div>`).join('');
+}
+
+async function uploadRecord(input) {
+  const file = input.files[0]; if (!file) return;
+  document.getElementById('uploadProgress').classList.remove('hidden');
+  const form = new FormData(); form.append('file', file);
+  await fetch('/api/records/upload', {method:'POST', body: form});
+  document.getElementById('uploadProgress').classList.add('hidden');
+  loadRecords();
+}
+
+async function deleteRecord(id) {
+  if (!confirm('Delete this record?')) return;
+  await fetch(`/api/records/${id}`, {method:'DELETE'});
+  loadRecords();
+}
+
+// ─── CYCLE TRACKER ────────────────────────────────────────────────────
+async function renderCycle() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Cycle Tracker</div><div class="page-sub">Track menstrual cycle, symptoms & predictions</div></div>
+    </div>
+    <div class="grid-2">
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">Log Period</div>
+          <div class="form-row">
+            <div class="form-group"><label>Start Date</label><input type="date" id="c-start" value="${today}"></div>
+            <div class="form-group"><label>End Date</label><input type="date" id="c-end"></div>
+          </div>
+          <div class="form-group"><label>Flow Intensity</label>
+            <select id="c-flow"><option value="light">Light</option><option value="medium" selected>Medium</option><option value="heavy">Heavy</option><option value="spotting">Spotting</option></select>
+          </div>
+          <div class="form-group"><label>Symptoms (select all that apply)</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px" id="symptomPicker">
+              ${['Cramps','Bloating','Headache','Mood swings','Fatigue','Back pain','Nausea','Tender breasts'].map(s =>
+                `<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" value="${s}"> ${s}</label>`
+              ).join('')}
+            </div>
+          </div>
+          <div class="form-group"><label>Notes</label><input type="text" id="c-notes" placeholder="Any additional notes"></div>
+          <button class="btn btn-primary" onclick="addCycle()">Save Entry</button>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-title">Cycle History</div>
+          <div id="cycleHistory"></div>
+        </div>
+      </div>
+    </div>`;
+  loadCycle();
+}
+
+async function loadCycle() {
+  const res = await fetch('/api/cycle');
+  const cycles = await res.json();
+  const el = document.getElementById('cycleHistory');
+  if (!cycles.length) { el.innerHTML = '<p style="color:var(--muted);font-size:13px">No cycle data yet. Log your first period above.</p>'; return; }
+
+  const avg = cycles.length > 1
+    ? Math.round(cycles.slice(0,-1).reduce((s,c) => s + (c.cycle_length||28), 0) / (cycles.length-1))
+    : 28;
+  const last = cycles[0];
+  const lastStart = new Date(last.start_date);
+  const nextPredicted = new Date(lastStart);
+  nextPredicted.setDate(nextPredicted.getDate() + avg);
+  const daysUntil = Math.round((nextPredicted - new Date()) / 86400000);
+
+  el.innerHTML = `
+    <div style="background:var(--pink-bg);border:1px solid #fbcfe8;border-radius:8px;padding:12px;margin-bottom:14px">
+      <div style="font-size:13px;color:var(--pink);font-weight:500">Next period prediction</div>
+      <div style="font-size:22px;font-weight:700;color:var(--pink);margin:4px 0">${nextPredicted.toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</div>
+      <div style="font-size:12px;color:var(--muted)">${daysUntil > 0 ? `in ${daysUntil} days` : daysUntil === 0 ? 'today' : `${Math.abs(daysUntil)} days ago`} · avg cycle: ${avg} days</div>
+    </div>
+    ${cycles.map(c => {
+      const symptoms = c.symptoms ? JSON.parse(c.symptoms) : [];
+      const flowColors = {light:'#f9a8d4',medium:'#ec4899',heavy:'#9d174d',spotting:'#fda4af'};
+      return `<div style="padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:14px;font-weight:500">🩸 ${new Date(c.start_date).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</div>
+          <span class="tag" style="background:${flowColors[c.flow_intensity]||'#f9a8d4'}22;color:${flowColors[c.flow_intensity]||'#db2777'}">${c.flow_intensity}</span>
+        </div>
+        ${c.end_date?`<div style="font-size:12px;color:var(--muted);margin-top:2px">to ${new Date(c.end_date).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</div>`:''}
+        ${symptoms.length?`<div style="font-size:12px;color:var(--muted);margin-top:4px">${symptoms.join(', ')}</div>`:''}
+        ${c.notes?`<div style="font-size:12px;color:var(--muted);margin-top:2px">${c.notes}</div>`:''}
+      </div>`;
+    }).join('')}`;
+}
+
+async function addCycle() {
+  const symptoms = [...document.querySelectorAll('#symptomPicker input:checked')].map(i => i.value);
+  const start = document.getElementById('c-start').value;
+  const end = document.getElementById('c-end').value;
+  let cycleLen = null;
+  const res = await fetch('/api/cycle');
+  const prev = await res.json();
+  if (prev.length && prev[0].start_date && start) {
+    cycleLen = Math.round((new Date(start) - new Date(prev[0].start_date)) / 86400000);
+  }
+  await fetch('/api/cycle', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    start_date: start, end_date: end,
+    cycle_length: cycleLen,
+    flow_intensity: document.getElementById('c-flow').value,
+    symptoms, notes: document.getElementById('c-notes').value
+  })});
+  loadCycle();
+}
+
+// ─── DIET LOG ─────────────────────────────────────────────────────────
+async function renderDiet() {
+  let strava = {connected: false, configured: false};
+  try {
+    const stravaRes = await fetch('/api/strava/status');
+    if (stravaRes.ok) strava = await stravaRes.json();
+  } catch(e) { strava = {connected: false, configured: false}; }
+  document.getElementById('mainContent').innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Diet & Nutrition</div><div class="page-sub">Track meals, calories & water intake</div></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="date" id="dietDate" value="${today}" onchange="loadDiet()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;font-family:var(--font);background:var(--bg3);color:var(--text)">
+        <button class="btn" onclick="showDietAnalysis()" style="background:rgba(124,111,255,0.1);color:var(--accent3);border-color:rgba(124,111,255,0.3)">🤖 AI Dietician</button>
+        <button class="btn" onclick="sendDietEmail()" style="background:rgba(0,229,160,0.1);color:var(--success);border-color:rgba(0,229,160,0.3)">📧 Email Report</button>
+        ${strava.connected
+          ? `<button class="btn btn-primary" onclick="syncStrava()" id="stravaBtn">🏃 Sync Strava</button>
+             <button class="btn btn-sm" onclick="disconnectStrava()" style="font-size:11px;color:var(--muted)">Disconnect</button>`
+          : strava.configured
+            ? `<a href="/strava/connect"><button class="btn" style="background:#fc4c02;color:white;border:none">🏃 Connect Strava</button></a>`
+            : `<a href="/strava/connect"><button class="btn">🏃 Connect Strava</button></a>`
+        }
+      </div>
+    </div>
+    <div id="stravaStatus"></div>
+    <div id="dietSummary" style="margin-bottom:20px"></div>
+    <div class="grid-2">
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">Log Meal</div>
+          <div class="form-group"><label>Meal Type</label>
+            <select id="d-meal"><option value="Breakfast">Breakfast</option><option value="Lunch">Lunch</option><option value="Snack">Snack</option><option value="Dinner">Dinner</option></select>
+          </div>
+          <div class="form-group">
+            <label>Food Items</label>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="d-food" placeholder="e.g. 1 cup rice + dal + bitter gourd" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();analyzeCals();}">
+              <button class="btn" onclick="analyzeCals()" id="analyzeBtn" style="white-space:nowrap;background:rgba(0,212,200,0.1);color:var(--accent);border-color:rgba(0,212,200,0.3)">✨ Analyze</button>
+              <label for="foodPhotoInput" style="cursor:pointer">
+                <div class="btn" style="background:rgba(0,153,255,0.1);color:var(--accent2);border-color:rgba(0,153,255,0.3)">📸 Photo</div>
+              </label>
+              <input type="file" id="foodPhotoInput" accept="image/*" style="display:none" onchange="analyzePhoto(this)">
+            </div>
+          </div>
+          <div id="aiCalResult" style="display:none;background:var(--color-background-success);border:0.5px solid var(--color-border-success);border-radius:var(--border-radius-md);padding:10px 12px;font-size:13px;margin-bottom:10px;color:var(--color-text-success)"></div>
+          <div class="form-row">
+            <div class="form-group"><label>Calories (kcal) — auto-filled by AI</label><input type="number" id="d-cal" placeholder="0"></div>
+            <div class="form-group"><label>Water (ml)</label><input type="number" id="d-water" placeholder="0"></div>
+          </div>
+          <div class="form-group"><label>Notes</label><input type="text" id="d-notes" placeholder="Optional"></div>
+          <button class="btn btn-primary" onclick="addDiet()">Log Meal</button>
+        </div>
+      </div>
+      <div id="dietEntries"></div>
+    </div>`;
+  loadDiet();
+}
+
+async function loadDiet() {
+  const date = document.getElementById('dietDate')?.value || today;
+  const res = await fetch(`/api/diet?date=${date}`);
+  const entries = await res.json();
+
+  const totalCal = entries.reduce((s, e) => s + (e.calories || 0), 0);
+  const totalWater = entries.reduce((s, e) => s + (e.water_ml || 0), 0);
+  const waterCups = Math.round(totalWater / 250);
+  const target = 2000;
+  const waterTarget = 8;
+
+  document.getElementById('dietSummary').innerHTML = `
+    <div class="grid-3">
+      <div class="stat-card"><div class="stat-label">Calories today</div><div class="stat-value" style="color:var(--accent)">${totalCal.toLocaleString()}</div><div class="stat-unit">of ${target} kcal target</div>
+        <div style="background:var(--surface2);border-radius:4px;height:6px;margin-top:8px"><div style="background:var(--accent);height:6px;border-radius:4px;width:${Math.min(100,Math.round(totalCal/target*100))}%"></div></div>
+      </div>
+      <div class="stat-card"><div class="stat-label">Water intake</div><div class="stat-value" style="color:var(--teal)">${totalWater}</div><div class="stat-unit">ml (${waterCups} cups)</div>
+        <div style="background:var(--surface2);border-radius:4px;height:6px;margin-top:8px"><div style="background:var(--teal);height:6px;border-radius:4px;width:${Math.min(100,Math.round(waterCups/waterTarget*100))}%"></div></div>
+      </div>
+      <div class="stat-card"><div class="stat-label">Meals logged</div><div class="stat-value">${entries.length}</div><div class="stat-unit">entries today</div><span class="stat-badge ${entries.length>=3?'badge-ok':'badge-warn'}">${entries.length>=3?'Good':'Log more'}</span></div>
+    </div>`;
+
+  const mealMeta = {
+    Breakfast: { icon: '🌅', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)' },
+    Lunch:     { icon: '☀️', color: '#10b981', bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.2)' },
+    Snack:     { icon: '🍎', color: '#8b5cf6', bg: 'rgba(139,92,246,0.08)', border: 'rgba(139,92,246,0.2)' },
+    Dinner:    { icon: '🌙', color: '#3b82f6', bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.2)' }
+  };
+  const meals = ['Breakfast','Lunch','Snack','Dinner'];
+  const el = document.getElementById('dietEntries');
+  el.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px">
+      ${meals.map(meal => {
+        const items = entries.filter(e => e.meal_type === meal);
+        const m = mealMeta[meal];
+        const totalMealCal = items.reduce((s,e)=>s+(e.calories||0),0);
+        return `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+          <!-- Meal Header -->
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:${m.bg};border-bottom:1px solid ${items.length ? m.border : 'transparent'}">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:34px;height:34px;border-radius:10px;background:${m.bg};border:1px solid ${m.border};display:flex;align-items:center;justify-content:center;font-size:18px">${m.icon}</div>
+              <div>
+                <div style="font-size:14px;font-weight:600;color:var(--text)">${meal}</div>
+                <div style="font-size:11px;color:var(--text3)">${items.length} item${items.length!==1?'s':''}</div>
+              </div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:18px;font-weight:700;color:${m.color};font-family:var(--mono)">${totalMealCal.toLocaleString()}</div>
+              <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em">kcal</div>
+            </div>
+          </div>
+          <!-- Items -->
+          <div style="padding:${items.length?'8px':'0'} 0">
+            ${items.length ? items.map((e,i) => {
+              let nutrients = null;
+              try { if (e.notes && e.notes.startsWith('{')) nutrients = JSON.parse(e.notes); } catch(err){}
+              return `
+              <div id="diet-row-${e.id}" style="padding:10px 16px;display:flex;align-items:flex-start;gap:12px;border-bottom:${i<items.length-1?'1px solid var(--border)':'none'};transition:background 0.15s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='transparent'">
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.4;margin-bottom:${nutrients?'6px':'0'}">${e.food_items || '—'}</div>
+                  ${nutrients ? `<div style="display:flex;gap:8px;flex-wrap:wrap">
+                    ${nutrients.protein_g!=null?`<span style="font-size:10px;background:rgba(37,99,235,0.12);color:#60a5fa;padding:2px 7px;border-radius:20px;font-weight:500">P ${nutrients.protein_g}g</span>`:''}
+                    ${nutrients.carbs_g!=null?`<span style="font-size:10px;background:rgba(217,119,6,0.12);color:#fbbf24;padding:2px 7px;border-radius:20px;font-weight:500">C ${nutrients.carbs_g}g</span>`:''}
+                    ${nutrients.fat_g!=null?`<span style="font-size:10px;background:rgba(220,38,38,0.12);color:#f87171;padding:2px 7px;border-radius:20px;font-weight:500">F ${nutrients.fat_g}g</span>`:''}
+                    ${nutrients.fiber_g!=null?`<span style="font-size:10px;background:rgba(22,163,74,0.12);color:#4ade80;padding:2px 7px;border-radius:20px;font-weight:500">Fiber ${nutrients.fiber_g}g</span>`:''}
+                  </div>` : ''}
+                </div>
+                <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+                  <span style="font-size:13px;font-weight:600;color:${m.color};font-family:var(--mono);min-width:60px;text-align:right">${(e.calories||0).toLocaleString()} kcal</span>
+                  ${e.water_ml ? `<span style="font-size:11px;color:var(--accent2);background:rgba(0,153,255,0.1);padding:2px 6px;border-radius:8px">💧${e.water_ml}ml</span>` : ''}
+                  <button onclick="openEditDiet(${e.id},'${(e.food_items||'').replace(/'/g,"\\'")}',${e.calories||0},${e.water_ml||0},'${e.meal_type}')" title="Edit" style="width:28px;height:28px;border-radius:7px;border:1px solid var(--border2);background:transparent;cursor:pointer;color:var(--text3);font-size:13px;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.background='rgba(0,212,200,0.1)';this.style.color='var(--accent)';this.style.borderColor='rgba(0,212,200,0.3)'" onmouseout="this.style.background='transparent';this.style.color='var(--text3)';this.style.borderColor='var(--border2)'">✏️</button>
+                  <button onclick="deleteDiet(${e.id})" title="Delete" style="width:28px;height:28px;border-radius:7px;border:1px solid var(--border2);background:transparent;cursor:pointer;color:var(--text3);font-size:13px;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.background='rgba(255,77,109,0.1)';this.style.color='var(--danger)';this.style.borderColor='rgba(255,77,109,0.3)'" onmouseout="this.style.background='transparent';this.style.color='var(--text3)';this.style.borderColor='var(--border2)'">🗑️</button>
+                </div>
+              </div>`;
+            }).join('') : `<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">Nothing logged yet</div>`}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <!-- Edit Diet Modal -->
+    <div id="editDietModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(4px)" onclick="if(event.target===this)closeEditDiet()">
+      <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:24px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div style="font-size:16px;font-weight:600;color:var(--text)">✏️ Edit Meal Entry</div>
+          <button onclick="closeEditDiet()" style="width:30px;height:30px;border-radius:8px;border:1px solid var(--border2);background:transparent;cursor:pointer;color:var(--text3);font-size:16px;display:flex;align-items:center;justify-content:center">×</button>
+        </div>
+        <input type="hidden" id="editDietId">
+        <div class="form-group">
+          <label>Meal Type</label>
+          <select id="editDietMeal" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--r);background:var(--bg3);color:var(--text);font-size:13px;font-family:var(--font)">
+            <option value="Breakfast">🌅 Breakfast</option>
+            <option value="Lunch">☀️ Lunch</option>
+            <option value="Snack">🍎 Snack</option>
+            <option value="Dinner">🌙 Dinner</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Food Items</label>
+          <textarea id="editDietFood" rows="3" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--r);background:var(--bg3);color:var(--text);font-size:13px;font-family:var(--font);resize:vertical;line-height:1.5"></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Calories (kcal)</label>
+            <input type="number" id="editDietCal" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--r);background:var(--bg3);color:var(--text);font-size:13px;font-family:var(--font)">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Water (ml)</label>
+            <input type="number" id="editDietWater" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--r);background:var(--bg3);color:var(--text);font-size:13px;font-family:var(--font)">
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:20px">
+          <button onclick="closeEditDiet()" style="flex:1;padding:10px;border:1px solid var(--border2);border-radius:var(--r);background:transparent;cursor:pointer;color:var(--text2);font-size:14px;font-family:var(--font)">Cancel</button>
+          <button onclick="saveEditDiet()" style="flex:2;padding:10px;border:none;border-radius:var(--r);background:linear-gradient(135deg,var(--accent),#00b8ad);cursor:pointer;color:#001a1a;font-size:14px;font-weight:600;font-family:var(--font)">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function analyzeCals() {
+  const food = document.getElementById('d-food').value.trim();
+  if (!food) { alert('Please enter food items first'); return; }
+  const btn = document.getElementById('analyzeBtn');
+  const resultEl = document.getElementById('aiCalResult');
+  btn.textContent = '⏳ Analyzing…'; btn.disabled = true;
+  resultEl.style.display = 'none';
+  try {
+    const res = await fetch('/api/analyze-nutrition', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({food_items: food})
+    });
+    const d = await res.json();
+    if (d.calories) {
+      document.getElementById('d-cal').value = d.calories;
+      // Store nutrients in notes as JSON
+      document.getElementById('d-notes').value = JSON.stringify({
+        protein_g: d.protein_g, carbs_g: d.carbs_g, fat_g: d.fat_g,
+        fiber_g: d.fiber_g, sodium_mg: d.sodium_mg
+      });
+      resultEl.style.display = 'block';
+      resultEl.style.cssText = 'display:block;background:var(--color-background-success);border:0.5px solid var(--color-border-success);border-radius:var(--border-radius-lg);padding:12px 14px;font-size:13px;margin-bottom:10px;line-height:1.7';
+      resultEl.innerHTML = `
+        <div style="font-weight:500;color:var(--color-text-success);margin-bottom:8px">✅ ${d.calories} kcal — ${d.breakdown||''}</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px">
+          ${[['Protein',d.protein_g,'g','#2563eb'],['Carbs',d.carbs_g,'g','#d97706'],['Fat',d.fat_g,'g','#dc2626'],['Fiber',d.fiber_g,'g','#16a34a']].map(([n,v,u,c])=>
+            `<div style="background:var(--color-background-primary);border-radius:var(--border-radius-md);padding:6px 8px;text-align:center"><div style="font-size:16px;font-weight:500;color:${c}">${v||0}${u}</div><div style="font-size:10px;color:var(--color-text-secondary)">${n}</div></div>`
+          ).join('')}
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px;font-size:12px">
+          <span style="color:var(--color-text-secondary)">Sodium: <strong>${d.sodium_mg||0}mg</strong></span>
+          <span style="color:var(--color-text-secondary)">Iron: <strong>${d.iron_mg||0}mg</strong></span>
+          <span style="color:var(--color-text-secondary)">Calcium: <strong>${d.calcium_mg||0}mg</strong></span>
+          <span style="color:var(--color-text-secondary)">Vit C: <strong>${d.vitamin_c_mg||0}mg</strong></span>
+          <span style="color:var(--color-text-secondary)">Potassium: <strong>${d.potassium_mg||0}mg</strong></span>
+          <span style="color:var(--color-text-secondary)">Sugar: <strong>${d.sugar_g||0}g</strong></span>
+        </div>
+        ${d.health_note?`<div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:4px">💡 ${d.health_note}</div>`:''}
+        ${d.suggestions?`<div style="font-size:12px;color:var(--color-text-info)">🥗 ${d.suggestions}</div>`:''}
+        ${d.missing_nutrients?`<div style="font-size:12px;color:var(--color-text-warning)">⚠️ Low in: ${d.missing_nutrients}</div>`:''}`;
+    } else {
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = `⚠️ ${d.error||'Could not analyze. Please enter calories manually.'}`;
+    }
+  } catch(e) {
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = '⚠️ Analysis failed. Enter calories manually.';
+  }
+  btn.textContent = '✨ Analyze'; btn.disabled = false;
+}
+
+async function addDiet() {
+  const food = document.getElementById('d-food').value.trim();
+  if (!food) { showToast('Please enter food items', 'warn'); return; }
+  const mealType = document.getElementById('d-meal').value;
+  if (!mealType) { showToast('Please select a meal type', 'warn'); return; }
+  const date = document.getElementById('dietDate')?.value || today;
+  const btn = event?.target;
+  if (btn) { btn.textContent = 'Saving…'; btn.disabled = true; }
+  const res = await fetch('/api/diet', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    date, meal_type: mealType,
+    food_items: food,
+    calories: parseInt(document.getElementById('d-cal').value)||0,
+    water_ml: parseInt(document.getElementById('d-water').value)||0,
+    notes: document.getElementById('d-notes').value
+  })});
+  if (btn) { btn.textContent = 'Log Meal'; btn.disabled = false; }
+  if (res.ok) {
+    // Clear form fields after successful save
+    document.getElementById('d-food').value = '';
+    document.getElementById('d-cal').value = '';
+    document.getElementById('d-water').value = '';
+    document.getElementById('d-notes').value = '';
+    document.getElementById('aiCalResult').style.display = 'none';
+    showToast('Meal logged successfully ✓', 'ok');
+  }
+  loadDiet();
+}
+
+async function deleteDiet(id) {
+  await fetch(`/api/diet/${id}`, {method:'DELETE'});
+  loadDiet();
+}
+
+function openEditDiet(id, foodItems, calories, water, mealType) {
+  document.getElementById('editDietId').value = id;
+  document.getElementById('editDietFood').value = foodItems;
+  document.getElementById('editDietCal').value = calories;
+  document.getElementById('editDietWater').value = water;
+  document.getElementById('editDietMeal').value = mealType;
+  const modal = document.getElementById('editDietModal');
+  modal.style.display = 'flex';
+  setTimeout(() => document.getElementById('editDietFood').focus(), 50);
+}
+
+function closeEditDiet() {
+  document.getElementById('editDietModal').style.display = 'none';
+}
+
+async function saveEditDiet() {
+  const id = document.getElementById('editDietId').value;
+  const food = document.getElementById('editDietFood').value.trim();
+  if (!food) { showToast('Please enter food items', 'warn'); return; }
+  const btn = document.querySelector('#editDietModal button[onclick="saveEditDiet()"]');
+  if (btn) { btn.textContent = 'Saving…'; btn.disabled = true; }
+  try {
+    const res = await fetch(`/api/diet/${id}`, {
+      method: 'PATCH',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        food_items: food,
+        meal_type: document.getElementById('editDietMeal').value,
+        calories: parseInt(document.getElementById('editDietCal').value) || 0,
+        water_ml: parseInt(document.getElementById('editDietWater').value) || 0
+      })
+    });
+    if (res.ok) {
+      closeEditDiet();
+      showToast('Meal updated ✓', 'ok');
+      loadDiet();
+    } else {
+      showToast('Update failed', 'error');
+    }
+  } catch(e) {
+    showToast('Update failed', 'error');
+  }
+  if (btn) { btn.textContent = 'Save Changes'; btn.disabled = false; }
+}
+
+// ─── APPOINTMENTS ─────────────────────────────────────────────────────
+const PREP_TIPS = {
+  'Cardiologist':    ['Fast for 4 hours if blood tests expected','Wear comfortable, loose clothing','Bring previous ECG reports','List all current medications','Note any chest pain episodes'],
+  'Dermatologist':   ['Come with clean skin, no makeup','Bring photos of skin changes over time','List all skincare products used','Note any new allergies or reactions'],
+  'Neurologist':     ['Bring MRI/CT scan reports','Note frequency and duration of symptoms','List all medications including supplements','Have someone accompany you if needed'],
+  'Orthopedic':      ['Bring X-rays and MRI reports','Wear easy-to-remove clothing','Note pain level and triggers','List previous injuries or surgeries'],
+  'Diabetologist':   ['Fast for 8–10 hours for fasting sugar test','Bring glucose diary or readings','Bring HbA1c reports','List all diabetes medications'],
+  'Gynecologist':    ['Avoid intercourse 24h before if pelvic exam','Bring menstrual cycle history','List all current medications','Note any unusual symptoms'],
+  'Ophthalmologist': ['Bring existing glasses or contact lenses','You may need someone to drive you back (dilation)','Bring previous eye prescriptions'],
+  'Dentist':         ['Brush and floss before visit','List all medications you take','Mention any dental anxiety to staff','Bring previous X-rays if available'],
+  'General Physician':['List all current symptoms with duration','Bring all existing reports','Note any recent changes in health','List all medications'],
+};
+function getPrep(specialty) {
+  return PREP_TIPS[specialty] || ['Bring all previous medical reports','List all current medications','Note your symptoms and their duration','Arrive 10 minutes early'];
+}
+
+async function renderAppointments() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Appointments</div><div class="page-sub">Schedule and track doctor visits</div></div>
+      <button class="btn btn-primary" onclick="document.getElementById('bookPanel').scrollIntoView({behavior:'smooth'})">+ Book Appointment</button>
+    </div>
+    <div id="apptAlert"></div>
+    <div class="grid-2">
+      <div id="apptList"></div>
+      <div class="card" id="bookPanel">
+        <div class="card-title">📅 Book Appointment</div>
+        <div class="form-group"><label>Doctor Name *</label>
+          <input type="text" id="a-doctor" placeholder="Dr. Name" oninput="suggestDoctor(this.value)">
+          <div id="doctorSuggest" style="display:none;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);margin-top:4px;overflow:hidden"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Specialty</label>
+            <select id="a-spec" onchange="updatePrepTips()">
+              ${Object.keys(PREP_TIPS).map(s=>`<option>${s}</option>`).join('')}
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Reason for Visit</label><input type="text" id="a-reason" placeholder="Follow-up, Check-up…"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Date *</label><input type="date" id="a-date" value="${today}"></div>
+          <div class="form-group"><label>Time</label><input type="time" id="a-time" value="10:00"></div>
+        </div>
+        <div class="form-group"><label>Location / Clinic</label><input type="text" id="a-loc" placeholder="Hospital or clinic name"></div>
+        <div class="form-group"><label>Notes</label><textarea id="a-notes" rows="2" placeholder="Any special instructions…"></textarea></div>
+
+        <!-- Prep checklist -->
+        <div id="prepTipsBox" style="background:rgba(0,212,200,0.06);border:1px solid rgba(0,212,200,0.2);border-radius:var(--r);padding:14px;margin-bottom:14px">
+          <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:8px">✅ Preparation checklist</div>
+          <div id="prepTipsList" style="font-size:12px;color:var(--text2);line-height:1.9"></div>
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="addAppointment()">Book Appointment</button>
+      </div>
+    </div>`;
+  loadAppointments();
+  updatePrepTips();
+}
+
+function updatePrepTips() {
+  const spec = document.getElementById('a-spec')?.value || '';
+  const tips = getPrep(spec);
+  const el = document.getElementById('prepTipsList');
+  if (el) el.innerHTML = tips.map(t => `<div style="display:flex;gap:8px;align-items:flex-start"><span style="color:var(--accent);margin-top:2px">•</span><span>${t}</span></div>`).join('');
+}
+
+async function suggestDoctor(val) {
+  const box = document.getElementById('doctorSuggest');
+  if (!val || val.length < 2) { box.style.display='none'; return; }
+  const res = await fetch('/api/doctors');
+  const doctors = await res.json();
+  const matches = doctors.filter(d => d.name.toLowerCase().includes(val.toLowerCase()));
+  if (!matches.length) { box.style.display='none'; return; }
+  box.style.display='block';
+  box.innerHTML = matches.slice(0,4).map(d =>
+    `<div onclick="pickDoctor('${d.name.replace(/'/g,"\'")}','${(d.specialty||'').replace(/'/g,"\'")}','${(d.hospital||'').replace(/'/g,"\'")}','${(d.phone||'').replace(/'/g,"\'")}');document.getElementById('doctorSuggest').style.display='none'" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;display:flex;gap:10px;align-items:center" onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background=''">
+      <span style="font-size:18px">${specialtyIcon(d.specialty)}</span>
+      <div><div style="font-weight:500">${d.name}</div><div style="font-size:11px;color:var(--text3)">${d.specialty}${d.hospital?' · '+d.hospital:''}</div></div>
+    </div>`).join('');
+}
+
+function pickDoctor(name, specialty, hospital, phone) {
+  document.getElementById('a-doctor').value = name;
+  const specEl = document.getElementById('a-spec');
+  if (specEl && specialty) specEl.value = specialty;
+  if (hospital) document.getElementById('a-loc').value = hospital;
+  updatePrepTips();
+}
+
+async function loadAppointments() {
+  const res = await fetch('/api/appointments');
+  const appts = await res.json();
+  const upcoming = appts.filter(a => !a.completed && a.date >= today);
+  const past = appts.filter(a => a.completed || a.date < today);
+
+  const badge = document.getElementById('apptBadge');
+  if (upcoming.length > 0) { badge.textContent = upcoming.length; badge.classList.remove('hidden'); }
+  else badge.classList.add('hidden');
+
+  const alertEl = document.getElementById('apptAlert');
+  const todayAppts = upcoming.filter(a => a.date === today);
+  if (todayAppts.length) alertEl.innerHTML = `<div class="alert alert-warn">📅 You have ${todayAppts.length} appointment${todayAppts.length>1?'s':''} today!</div>`;
+
+  const listEl = document.getElementById('apptList');
+
+  const renderAppt = (a, isPast) => {
+    const d = new Date(a.date + 'T12:00:00');
+    const isToday = a.date === today;
+    const daysUntil = Math.ceil((d - new Date()) / 86400000);
+    const prep = !isPast ? getPrep(a.specialty) : [];
+    const icon = specialtyIcon(a.specialty);
+    return `
+    <div style="background:var(--surface);border:1px solid ${isToday?'rgba(255,179,71,0.4)':isPast?'var(--border)':'var(--border)'};border-radius:var(--r2);padding:18px;margin-bottom:12px;opacity:${isPast?'0.7':'1'};transition:border-color 0.2s" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='${isToday?'rgba(255,179,71,0.4)':isPast?'var(--border)':'var(--border)'}'">
+      ${isToday ? `<div style="background:rgba(255,179,71,0.1);color:var(--warning);font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;display:inline-block;margin-bottom:10px;border:1px solid rgba(255,179,71,0.3)">📅 TODAY</div>` : ''}
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <div style="min-width:56px;text-align:center">
+          <div style="background:${isPast?'var(--surface2)':'linear-gradient(135deg,rgba(0,212,200,0.15),rgba(0,153,255,0.1))'};border-radius:12px;padding:8px 6px;border:1px solid ${isPast?'var(--border)':'rgba(0,212,200,0.25)'}">
+            <div style="font-size:22px;margin-bottom:2px">${icon}</div>
+            <div style="font-size:20px;font-weight:700;color:${isPast?'var(--text2)':'var(--accent)'};line-height:1">${d.getDate()}</div>
+            <div style="font-size:10px;color:var(--text3)">${d.toLocaleDateString('en-IN',{month:'short'}).toUpperCase()}</div>
+          </div>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:15px;margin-bottom:2px">${a.doctor_name}</div>
+          <div style="color:var(--accent);font-size:12px;margin-bottom:6px">${a.specialty||''}${a.reason?' · '+a.reason:''}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--text2);margin-bottom:8px">
+            ${a.time?`<span>🕐 ${a.time}</span>`:''}
+            ${a.location?`<span>📍 ${a.location}</span>`:''}
+            ${!isPast && daysUntil>0 ? `<span style="color:var(--warning)">⏳ In ${daysUntil} day${daysUntil>1?'s':''}</span>` : ''}
+          </div>
+          ${a.notes?`<div style="font-size:12px;color:var(--text3);margin-bottom:8px">📝 ${a.notes}</div>`:''}
+          ${!isPast && prep.length ? `
+          <details style="margin-top:8px">
+            <summary style="font-size:12px;color:var(--accent);cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px">
+              <span>✅</span> Preparation checklist <span style="color:var(--text3)">(${prep.length} tips)</span>
+            </summary>
+            <div style="margin-top:8px;background:rgba(0,212,200,0.05);border-radius:var(--r);padding:10px 12px;border:1px solid rgba(0,212,200,0.12)">
+              ${prep.map(t=>`<div style="font-size:12px;color:var(--text2);padding:3px 0;display:flex;gap:8px"><span style="color:var(--accent)">•</span>${t}</div>`).join('')}
+            </div>
+          </details>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+          ${!isPast ? `<button onclick="completeAppt(${a.id})" style="background:rgba(0,229,160,0.1);color:var(--success);border:1px solid rgba(0,229,160,0.25);border-radius:var(--r);padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">✓ Done</button>` : `<span style="font-size:11px;color:var(--text3);background:var(--surface2);padding:4px 8px;border-radius:6px">Completed</span>`}
+          <button onclick="deleteAppt(${a.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:4px">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  };
+
+  listEl.innerHTML = `
+    ${upcoming.length
+      ? `<div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px">Upcoming (${upcoming.length})</div>` + upcoming.map(a => renderAppt(a,false)).join('')
+      : `<div style="text-align:center;padding:32px;background:var(--surface);border-radius:var(--r2);border:1px solid var(--border);color:var(--text2);font-size:13px;margin-bottom:12px">No upcoming appointments.<br><span style="color:var(--text3);font-size:12px">Use the form to book one →</span></div>`}
+    ${past.length ? `<div style="font-size:13px;font-weight:600;color:var(--text3);margin:16px 0 10px;text-transform:uppercase;letter-spacing:0.5px">Past</div>` + past.map(a => renderAppt(a,true)).join('') : ''}`;
+}
+
+async function addAppointment() {
+  const doctor = document.getElementById('a-doctor').value.trim();
+  const date   = document.getElementById('a-date').value;
+  if (!doctor) { showToast('Please enter doctor name','warn'); return; }
+  if (!date)   { showToast('Please select a date','warn'); return; }
+  const btn = event?.target;
+  if (btn) { btn.textContent='Booking…'; btn.disabled=true; }
+  await fetch('/api/appointments', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    doctor_name: doctor,
+    specialty: document.getElementById('a-spec').value,
+    date, time: document.getElementById('a-time').value,
+    location: document.getElementById('a-loc').value,
+    reason: document.getElementById('a-reason').value,
+    notes: document.getElementById('a-notes').value
+  })});
+  if (btn) { btn.textContent='Book Appointment'; btn.disabled=false; }
+  // Clear fields
+  document.getElementById('a-doctor').value='';
+  document.getElementById('a-reason').value='';
+  document.getElementById('a-notes').value='';
+  showToast(`Appointment with ${doctor} booked ✓`);
+  loadAppointments();
+}
+
+async function completeAppt(id) {
+  await fetch(`/api/appointments/${id}`, {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({completed:1})});
+  loadAppointments();
+}
+
+async function deleteAppt(id) {
+  if (!confirm('Delete this appointment?')) return;
+  await fetch(`/api/appointments/${id}`, {method:'DELETE'});
+  loadAppointments();
+}
+
+
+// ─── Strava Sync ──────────────────────────────────────────────────────
+async function analyzePhoto(input) {
+  const file = input.files[0]; if (!file) return;
+  const resultEl = document.getElementById('aiCalResult');
+  resultEl.style.display = 'block';
+  resultEl.style.cssText = 'display:block;background:rgba(0,153,255,0.08);border:1px solid rgba(0,153,255,0.2);border-radius:10px;padding:12px 14px;font-size:13px;margin-bottom:10px;line-height:1.7;color:#8a9ab8';
+  resultEl.innerHTML = '<span class="spinner"></span>Analyzing your food photo with AI… (may take 15-30s)';
+
+  // Resize image before upload to reduce timeout risk
+  const resized = await resizeImage(file, 800);
+  const form = new FormData(); form.append('photo', resized, 'photo.jpg');
+
+  try {
+    const res = await fetch('/api/analyze-food-photo', {method:'POST', body: form});
+    // Guard against HTML error pages (timeout / gateway errors)
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      resultEl.innerHTML = '<span style="color:var(--danger)">❌ Server timed out analyzing the photo. Try a smaller/clearer image or enter food details manually.</span>';
+      input.value = ''; return;
+    }
+    const d = await res.json();
+    if (d.calories) {
+      document.getElementById('d-food').value = d.food_items || '';
+      document.getElementById('d-cal').value = d.calories;
+      if (d.meal_type) document.getElementById('d-meal').value = d.meal_type;
+      document.getElementById('d-notes').value = JSON.stringify({protein_g:d.protein_g,carbs_g:d.carbs_g,fat_g:d.fat_g,fiber_g:d.fiber_g});
+      resultEl.style.cssText = 'display:block;background:rgba(0,229,160,0.06);border:1px solid rgba(0,229,160,0.2);border-radius:10px;padding:12px 14px;font-size:13px;margin-bottom:10px;line-height:1.7';
+      resultEl.innerHTML = `<div style="font-weight:500;color:var(--success);margin-bottom:8px">📸 Photo analyzed — ${d.calories} kcal</div>
+        <div style="color:var(--text2)">${d.food_items}</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px">
+          ${[['Protein',d.protein_g+'g','#2563eb'],['Carbs',d.carbs_g+'g','#d97706'],['Fat',d.fat_g+'g','#dc2626'],['Fiber',d.fiber_g+'g','#16a34a']].map(([n,v,c])=>
+            `<div style="background:var(--surface);border-radius:6px;padding:6px;text-align:center"><div style="font-size:14px;font-weight:500;color:${c}">${v}</div><div style="font-size:10px;color:var(--text3)">${n}</div></div>`).join('')}
+        </div>
+        ${d.health_note ? `<div style="font-size:12px;color:var(--text3);margin-top:6px">💡 ${d.health_note}</div>` : ''}`;
+    } else {
+      resultEl.innerHTML = `<span style="color:var(--danger)">❌ ${d.error || 'Could not analyze photo. Please enter food details manually.'}</span>`;
+    }
+  } catch(e) {
+    resultEl.innerHTML = `<span style="color:var(--danger)">❌ Photo analysis failed. Please enter food details manually.</span>`;
+  }
+  input.value = '';
+}
+
+// Resize image on the client before uploading — reduces server processing time significantly
+function resizeImage(file, maxPx) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.82);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
+async function sendDietEmail() {
+  const statusEl = document.getElementById('stravaStatus');
+  if (statusEl) statusEl.innerHTML = '<div class="alert alert-info"><span class="spinner"></span>Generating and sending your diet report to your registered email…</div>';
+  try {
+    const res = await fetch('/api/send-diet-email', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
+    const d = await res.json();
+    if (d.status === 'ok') {
+      if (statusEl) statusEl.innerHTML = `<div class="alert alert-success">✅ ${d.message}</div>`;
+    } else {
+      if (statusEl) statusEl.innerHTML = `<div class="alert alert-danger">❌ ${d.error}</div>`;
+    }
+  } catch(e) {
+    if (statusEl) statusEl.innerHTML = `<div class="alert alert-danger">❌ ${e.message}</div>`;
+  }
+}
+
+async function disconnectStrava() {
+  if (!confirm('Disconnect Strava?')) return;
+  await fetch('/api/strava/disconnect', {method:'POST'});
+  renderDiet();
+}
+
+async function syncStrava() {
+  const btn = document.getElementById('stravaBtn');
+  const statusEl = document.getElementById('stravaStatus');
+  if (btn) { btn.textContent = '⏳ Syncing Strava…'; btn.disabled = true; }
+  if (statusEl) statusEl.innerHTML = '<div class="alert alert-info"><span class="spinner"></span>Fetching your activities from Strava…</div>';
+  try {
+    const res = await fetch('/api/strava/sync', {method:'POST'});
+    const d = await res.json();
+    if (d.success) {
+      const acts = (d.summary||[]).map(a => `${a.name} (${a.type}, ${a.distance}km, ${a.calories} cal)`).join(' · ');
+      if (statusEl) statusEl.innerHTML = `<div class="alert alert-success">✅ Synced ${d.activities} Strava activities! ${acts}</div>`;
+      setTimeout(() => loadDiet(), 600);
+    } else {
+      if (statusEl) statusEl.innerHTML = `<div class="alert" style="background:var(--danger-bg);color:var(--danger)">❌ ${d.error}</div>`;
+    }
+  } catch(e) {
+    if (statusEl) statusEl.innerHTML = `<div class="alert" style="background:var(--danger-bg);color:var(--danger)">❌ Error: ${e.message}</div>`;
+  }
+  if (btn) { btn.textContent = '🏃 Sync Strava'; btn.disabled = false; }
+}
+
+// ─── Google Fit Sync ──────────────────────────────────────────────
+async function syncGoogleFit() {
+  const btn = document.getElementById('syncBtn');
+  const statusEl = document.getElementById('syncStatus');
+  if (btn) { btn.textContent = '⏳ Syncing…'; btn.disabled = true; }
+  if (statusEl) statusEl.innerHTML = '<div class="alert alert-info"><span class="spinner"></span>Fetching latest data from your Fastrack watch via Google Fit…</div>';
+  try {
+    const res = await fetch('/api/googlefit/sync', {method:'POST'});
+    const d = await res.json();
+    if (d.success) {
+      const v = d.data;
+      const parts = [];
+      if (v.heart_rate) parts.push('Heart Rate: ' + v.heart_rate + ' bpm');
+      if (v.oxygen) parts.push('O2: ' + v.oxygen + '%');
+      if (v.steps) parts.push('Steps: ' + v.steps.toLocaleString());
+      if (v.bp_sys) parts.push('BP: ' + v.bp_sys + '/' + v.bp_dia);
+      if (statusEl) statusEl.innerHTML = '<div class="alert alert-success">✅ Synced! ' + parts.join(' · ') + ' — saved to vitals.</div>';
+      setTimeout(() => loadVitals(), 500);
+    } else {
+      if (statusEl) statusEl.innerHTML = '<div class="alert" style="background:var(--danger-bg);color:var(--danger);border:1px solid #fca5a5">❌ ' + (d.error||'Sync failed') + '</div>';
+    }
+  } catch(e) {
+    if (statusEl) statusEl.innerHTML = '<div class="alert" style="background:var(--danger-bg);color:var(--danger)">❌ Error: ' + e.message + '</div>';
+  }
+  if (btn) { btn.textContent = '📱 Sync from Watch'; btn.disabled = false; }
+}
+
+// ─── AI Dietician Analysis ────────────────────────────────────────────────────
+function renderMarkdown(text) {
+  return text
+    .replace(/^### (.+)$/gm, '<div style="font-size:14px;font-weight:500;color:var(--color-text-primary);margin:12px 0 4px">$1</div>')
+    .replace(/^## (.+)$/gm, '<div style="font-size:15px;font-weight:500;color:var(--color-text-primary);margin:14px 0 6px">$1</div>')
+    .replace(/^# (.+)$/gm, '<div style="font-size:16px;font-weight:500;margin:14px 0 6px">$1</div>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^- (.+)$/gm, '<div style="padding:2px 0 2px 14px;border-left:2px solid var(--color-border-secondary);margin:3px 0;font-size:13px">$1</div>')
+    .replace(/^\| (.+) \|$/gm, '<div style="font-size:12px;color:var(--color-text-secondary);padding:2px 0">$1</div>')
+    .replace(/^---+$/gm, '<hr style="border:none;border-top:0.5px solid var(--color-border-tertiary);margin:12px 0">')
+    .replace(/\n\n/g, '<br>')
+    .replace(/\n/g, '<br>');
+}
+
+async function showDietAnalysis() {
+  const date = document.getElementById('dietDate')?.value || today;
+  const statusEl = document.getElementById('stravaStatus');
+  if (statusEl) statusEl.innerHTML = '<div class="alert alert-info"><span class="spinner"></span>Your AI dietician is analysing today\'s diet…</div>';
+  try {
+    const res = await fetch('/api/diet-analysis', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({date})});
+    const d = await res.json();
+    if (statusEl) statusEl.innerHTML = `
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:18px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-size:15px;font-weight:500;display:flex;align-items:center;gap:8px">🤖 <span>AI Dietician Analysis — ${date}</span></div>
+          <button onclick="document.getElementById('stravaStatus').innerHTML=''" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--color-text-secondary)">✕</button>
+        </div>
+        <div style="font-size:14px;line-height:1.8;color:var(--color-text-secondary)">${renderMarkdown(d.analysis||d.error||'No data')}</div>
+      </div>`;
+  } catch(e) {
+    if (statusEl) statusEl.innerHTML = `<div class="alert" style="background:var(--color-background-danger);color:var(--color-text-danger)">❌ ${e.message}</div>`;
+  }
+}
+
+// ─── Profile ──────────────────────────────────────────────────────────────────
+async function renderProfile() {
+  const res = await fetch('/api/profile');
+  const p = await res.json();
+  document.getElementById('mainContent').innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">My Health Profile</div><div class="page-sub">Personal details for personalized AI nutrition & health analysis</div></div>
+    </div>
+    <div class="grid-2">
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">Personal Details</div>
+          <div class="form-row">
+            <div class="form-group"><label>Full Name</label><input type="text" id="p-name" value="${p.full_name||''}"></div>
+            <div class="form-group"><label>Age</label><input type="number" id="p-age" value="${p.age||''}" placeholder="e.g. 28"></div>
+          </div>
+          <div class="form-group"><label>Email Address (for diet reports)</label><input type="email" id="p-email" value="${p.email||''}" placeholder="your@email.com"></div>
+          <div class="form-row">
+            <div class="form-group"><label>Gender</label>
+              <select id="p-gender">
+                <option value="female" ${p.gender==='female'?'selected':''}>Female</option>
+                <option value="male" ${p.gender==='male'?'selected':''}>Male</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Dietary Preference</label>
+              <select id="p-diet">
+                <option value="vegetarian" ${p.dietary_pref==='vegetarian'?'selected':''}>Vegetarian</option>
+                <option value="non-vegetarian" ${p.dietary_pref==='non-vegetarian'?'selected':''}>Non-Vegetarian</option>
+                <option value="vegan" ${p.dietary_pref==='vegan'?'selected':''}>Vegan</option>
+                <option value="eggetarian" ${p.dietary_pref==='eggetarian'?'selected':''}>Eggetarian</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Weight (kg)</label><input type="number" id="p-weight" step="0.1" value="${p.weight_kg||''}" placeholder="e.g. 58"></div>
+            <div class="form-group"><label>Height (cm)</label><input type="number" id="p-height" value="${p.height_cm||''}" placeholder="e.g. 162"></div>
+          </div>
+          <div class="form-group"><label>Activity Level</label>
+            <select id="p-activity">
+              <option value="sedentary" ${p.activity_level==='sedentary'?'selected':''}>Sedentary (desk job, no exercise)</option>
+              <option value="light" ${p.activity_level==='light'?'selected':''}>Light (1-2 days/week exercise)</option>
+              <option value="moderate" ${p.activity_level==='moderate'?'selected':''}>Moderate (3-5 days/week)</option>
+              <option value="active" ${p.activity_level==='active'?'selected':''}>Active (6-7 days/week)</option>
+              <option value="very_active" ${p.activity_level==='very_active'?'selected':''}>Very Active (athlete)</option>
+            </select>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Health Information</div>
+          <div class="form-group"><label>Health Goals</label>
+            <input type="text" id="p-goals" value="${p.health_goals||''}" placeholder="e.g. Lose weight, manage diabetes, build strength">
+          </div>
+          <div class="form-group"><label>Medical Conditions</label>
+            <input type="text" id="p-conditions" value="${p.medical_conditions||''}" placeholder="e.g. Diabetes, PCOS, Thyroid, Hypertension">
+          </div>
+          <div class="form-group"><label>Food Allergies / Intolerances</label>
+            <input type="text" id="p-allergies" value="${p.allergies||''}" placeholder="e.g. Lactose intolerant, Gluten free, Nut allergy">
+          </div>
+          <button class="btn btn-primary" onclick="saveProfile()">Save Profile & Calculate Targets</button>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">Your Daily Targets</div>
+          <div id="targetsDisplay">
+            ${p.calorie_target ? `
+            <div class="grid-2" style="gap:10px">
+              ${[['🔥 Calories',p.calorie_target,'kcal/day','var(--color-text-info)'],
+                 ['💪 Protein',p.protein_target,'g/day','var(--color-text-success)'],
+                 ['🌾 Carbs',p.carb_target,'g/day','var(--color-text-warning)'],
+                 ['🥑 Fat',p.fat_target,'g/day','var(--color-text-danger)'],
+                 ['🥤 Water',p.water_target,'ml/day','#0d9488'],
+                 ['🧬 Fiber','25-30','g/day','#639922']
+              ].map(([n,v,u,c])=>`<div style="background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px;text-align:center">
+                <div style="font-size:20px;font-weight:500;color:${c}">${v}</div>
+                <div style="font-size:11px;color:var(--color-text-secondary)">${u}</div>
+                <div style="font-size:12px;font-weight:500;margin-top:2px">${n}</div>
+              </div>`).join('')}
+            </div>
+            <div style="margin-top:14px;padding:12px;background:rgba(0,212,200,0.06);border-radius:var(--border-radius-md);font-size:13px;color:var(--accent)">
+              💡 Targets calculated using Mifflin-St Jeor formula based on your age, weight, height and activity level
+            </div>
+            ${p.email ? `<div style="margin-top:10px;padding:10px 12px;background:rgba(0,229,160,0.06);border:1px solid rgba(0,229,160,0.15);border-radius:var(--border-radius-md);font-size:13px;color:var(--success)">📧 Diet reports will be sent to: <strong>${p.email}</strong></div>` : `<div style="margin-top:10px;padding:10px 12px;background:rgba(255,179,71,0.06);border:1px solid rgba(255,179,71,0.15);border-radius:var(--border-radius-md);font-size:13px;color:var(--warning)">⚠️ Add your email above so diet reports reach your inbox</div>`}` : `<p style="color:var(--color-text-secondary);font-size:14px">Fill in your profile details and save to see your personalized daily nutrition targets calculated by AI.</p>`}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">BMI & Health Indicators</div>
+          <div id="bmiDisplay">${getBmiHtml(p)}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function getBmiHtml(p) {
+  if (!p.weight_kg || !p.height_cm) return '<p style="color:var(--color-text-secondary);font-size:13px">Enter weight and height to see your BMI.</p>';
+  const bmi = (p.weight_kg / Math.pow(p.height_cm/100, 2)).toFixed(1);
+  const cat = bmi < 18.5 ? ['Underweight','var(--color-text-info)'] : bmi < 25 ? ['Normal weight','var(--color-text-success)'] : bmi < 30 ? ['Overweight','var(--color-text-warning)'] : ['Obese','var(--color-text-danger)'];
+  const ilow = (18.5 * Math.pow(p.height_cm/100,2)).toFixed(1);
+  const ihigh = (24.9 * Math.pow(p.height_cm/100,2)).toFixed(1);
+  const pct = Math.min(100, Math.max(0, ((bmi-10)/30)*100)).toFixed(0);
+  return '<div style="text-align:center;padding:16px 0 8px">'
+    + '<div style="font-size:52px;font-weight:500;color:' + cat[1] + '">' + bmi + '</div>'
+    + '<div style="font-size:15px;color:' + cat[1] + ';font-weight:500;margin-bottom:4px">' + cat[0] + '</div>'
+    + '<div style="font-size:12px;color:var(--color-text-secondary)">Ideal weight: ' + ilow + ' – ' + ihigh + ' kg</div>'
+    + '<div style="background:var(--color-background-secondary);border-radius:4px;height:8px;margin:12px 0 4px">'
+    + '<div style="background:' + cat[1] + ';height:8px;border-radius:4px;width:' + pct + '%"></div></div>'
+    + '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--color-text-secondary)">'
+    + '<span>Underweight &lt;18.5</span><span>Normal 18.5–25</span><span>Obese &gt;30</span></div>'
+    + '</div>';
+}
+
+async function saveProfile() {
+  const data = {
+    full_name: document.getElementById('p-name').value,
+    email: document.getElementById('p-email').value,
+    age: parseInt(document.getElementById('p-age').value)||0,
+    gender: document.getElementById('p-gender').value,
+    weight_kg: parseFloat(document.getElementById('p-weight').value)||0,
+    height_cm: parseFloat(document.getElementById('p-height').value)||0,
+    activity_level: document.getElementById('p-activity').value,
+    health_goals: document.getElementById('p-goals').value,
+    medical_conditions: document.getElementById('p-conditions').value,
+    allergies: document.getElementById('p-allergies').value,
+    dietary_pref: document.getElementById('p-diet').value,
+  };
+  const res = await fetch('/api/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  const result = await res.json();
+  if (result.status === 'ok') {
+    alert(`✅ Profile saved!\n\nYour daily targets:\n🔥 ${result.calorie_target} kcal\n💪 ${result.protein_target}g protein\n🌾 ${result.carb_target}g carbs\n🥑 ${result.fat_target}g fat\n🥤 ${result.water_target}ml water`);
+    renderProfile();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ─── TOAST NOTIFICATION ──────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+function showToast(msg, type='ok', duration=3000) {
+  const colors = { ok:'#00e5a0', warn:'#ffb347', error:'#ff4d6d', info:'#0099ff' };
+  const icons  = { ok:'✓', warn:'⚠️', error:'✕', info:'ℹ' };
+  const t = document.createElement('div');
+  t.style.cssText = `position:fixed;bottom:28px;right:28px;z-index:9999;background:var(--surface2);border:1px solid ${colors[type]}44;border-left:3px solid ${colors[type]};border-radius:10px;padding:12px 18px;font-size:13px;color:var(--text);display:flex;align-items:center;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,0.4);animation:slideIn 0.25s ease;max-width:340px`;
+  t.innerHTML = `<span style="color:${colors[type]};font-size:16px">${icons[type]}</span><span>${msg}</span>`;
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity 0.3s'; setTimeout(()=>t.remove(),300); }, duration);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ─── SPECIALTY ICONS ─────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+const SPECIALTY_ICONS = {
+  'Cardiologist':'❤️','Dermatologist':'🧴','Neurologist':'🧠','Orthopedic':'🦴',
+  'Pediatrician':'👶','Gynecologist':'🌸','ENT':'👂','Ophthalmologist':'👁️',
+  'Psychiatrist':'🧘','Dentist':'🦷','Gastroenterologist':'🫁','Urologist':'💧',
+  'General Physician':'🩺','Diabetologist':'🩸','Pulmonologist':'🫁','Oncologist':'🎗️',
+  'Nephrologist':'🫘','Rheumatologist':'🦾','Endocrinologist':'⚗️'
+};
+function specialtyIcon(s) {
+  return SPECIALTY_ICONS[s] || '🩺';
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ─── DOCTORS ─────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+async function renderDoctors() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `
+  <div class="page-header">
+    <div><div class="page-title">My Doctors</div><div class="page-sub">Your care team directory</div></div>
+    <button class="btn btn-primary" onclick="showAddDoctorModal()">+ Add Doctor</button>
+  </div>
+  <div id="doctorAlert"></div>
+  <div id="doctorGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:4px"></div>
+  <div id="addDoctorModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;display:none;align-items:center;justify-content:center">
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:18px;padding:28px;width:min(480px,90vw);max-height:90vh;overflow-y:auto">
+      <div style="font-size:17px;font-weight:600;margin-bottom:20px">Add Doctor</div>
+      <div class="form-group"><label>Doctor Name *</label><input type="text" id="dc-name" placeholder="Dr. Arun Kumar"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Specialty *</label>
+          <select id="dc-spec">
+            ${Object.keys(SPECIALTY_ICONS).map(s=>`<option>${s}</option>`).join('')}
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Phone *</label><input type="tel" id="dc-phone" placeholder="+91 98765 43210"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Email</label><input type="email" id="dc-email" placeholder="doctor@hospital.com"></div>
+        <div class="form-group"><label>Hospital / Clinic</label><input type="text" id="dc-hospital" placeholder="Apollo Hospital"></div>
+      </div>
+      <div class="form-group"><label>Address</label><input type="text" id="dc-address" placeholder="Street, City"></div>
+      <div class="form-group"><label>Notes</label><textarea id="dc-notes" rows="2" placeholder="Consultation hours, room number…"></textarea></div>
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <button class="btn btn-primary" style="flex:1" onclick="saveDoctor()">Save Doctor</button>
+        <button class="btn" onclick="closeModal('addDoctorModal')">Cancel</button>
+      </div>
+    </div>
+  </div>`;
+  loadDoctors();
+}
+
+async function loadDoctors() {
+  const res = await fetch('/api/doctors');
+  const doctors = await res.json();
+  const grid = document.getElementById('doctorGrid');
+  if (!doctors.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text2)">
+      <div style="font-size:48px;margin-bottom:12px">🩺</div>
+      <div style="font-size:16px;margin-bottom:6px">No doctors added yet</div>
+      <div style="font-size:13px;color:var(--text3)">Add your care team for quick access</div>
+    </div>`; return;
+  }
+  grid.innerHTML = doctors.map(d => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:20px;position:relative;transition:border-color 0.2s" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+      <button onclick="deleteDoctor(${d.id})" style="position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:4px" title="Remove">✕</button>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+        <div style="width:52px;height:52px;background:linear-gradient(135deg,var(--surface2),var(--surface3));border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">${specialtyIcon(d.specialty)}</div>
+        <div>
+          <div style="font-weight:600;font-size:15px">${d.name}</div>
+          <div style="color:var(--accent);font-size:12px;margin-top:2px">${d.specialty || '—'}</div>
+          ${d.hospital ? `<div style="color:var(--text3);font-size:11px;margin-top:1px">🏥 ${d.hospital}</div>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--text2);margin-bottom:14px">
+        ${d.phone ? `<div>📞 ${d.phone}</div>` : ''}
+        ${d.email ? `<div>✉️ ${d.email}</div>` : ''}
+        ${d.address ? `<div>📍 ${d.address}</div>` : ''}
+        ${d.notes ? `<div style="color:var(--text3);font-size:12px;margin-top:4px;padding-top:8px;border-top:1px solid var(--border)">📝 ${d.notes}</div>` : ''}
+      </div>
+      <div style="display:flex;gap:8px">
+        ${d.phone ? `
+          <a href="tel:${d.phone}" style="flex:1;text-align:center;background:rgba(0,229,160,0.1);color:var(--success);border:1px solid rgba(0,229,160,0.25);border-radius:var(--r);padding:8px;font-size:12px;font-weight:500;text-decoration:none;transition:background 0.2s" onmouseover="this.style.background='rgba(0,229,160,0.2)'" onmouseout="this.style.background='rgba(0,229,160,0.1)'">📞 Call</a>
+          <a href="sms:${d.phone}?body=Hello Dr. ${encodeURIComponent(d.name)}, I need to discuss my health." style="flex:1;text-align:center;background:rgba(0,153,255,0.1);color:var(--accent2);border:1px solid rgba(0,153,255,0.25);border-radius:var(--r);padding:8px;font-size:12px;font-weight:500;text-decoration:none;transition:background 0.2s" onmouseover="this.style.background='rgba(0,153,255,0.2)'" onmouseout="this.style.background='rgba(0,153,255,0.1)'">💬 Message</a>
+        ` : ''}
+        <button onclick="bookWithDoctor('${d.name.replace(/'/g,"\'")}','${(d.specialty||'').replace(/'/g,"\'")}','${(d.phone||'').replace(/'/g,"\'")}',${d.id})" style="flex:1;background:rgba(0,212,200,0.1);color:var(--accent);border:1px solid rgba(0,212,200,0.25);border-radius:var(--r);padding:8px;font-size:12px;font-weight:500;cursor:pointer;transition:background 0.2s" onmouseover="this.style.background='rgba(0,212,200,0.2)'" onmouseout="this.style.background='rgba(0,212,200,0.1)'">📅 Book</button>
+      </div>
+    </div>`).join('');
+}
+
+async function saveDoctor() {
+  const name = document.getElementById('dc-name').value.trim();
+  const phone = document.getElementById('dc-phone').value.trim();
+  if (!name || !phone) { showToast('Doctor name and phone are required','warn'); return; }
+  await fetch('/api/doctors',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    name, specialty: document.getElementById('dc-spec').value,
+    phone, email: document.getElementById('dc-email').value,
+    hospital: document.getElementById('dc-hospital').value,
+    address: document.getElementById('dc-address').value,
+    notes: document.getElementById('dc-notes').value
+  })});
+  closeModal('addDoctorModal');
+  showToast(`Dr. ${name} added ✓`);
+  loadDoctors();
+}
+
+async function deleteDoctor(id) {
+  if (!confirm('Remove this doctor?')) return;
+  await fetch(`/api/doctors/${id}`,{method:'DELETE'});
+  showToast('Doctor removed','warn');
+  loadDoctors();
+}
+
+function showAddDoctorModal() {
+  document.getElementById('addDoctorModal').style.display='flex';
+}
+
+function bookWithDoctor(name, specialty, phone, id) {
+  switchTab('appointments');
+  setTimeout(() => {
+    const el = document.getElementById('a-doctor');
+    if (el) { el.value = name; document.getElementById('a-spec').value = specialty; }
+  }, 300);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ─── EMERGENCY CONTACTS ──────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+async function renderEmergency() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `
+  <div class="page-header">
+    <div><div class="page-title">Emergency Contacts</div><div class="page-sub">Quick access when it matters most</div></div>
+    <button class="btn btn-primary" onclick="showAddContactModal()">+ Add Contact</button>
+  </div>
+  <div id="emergencyAlert"></div>
+
+  <!-- SOS Banner -->
+  <div style="background:linear-gradient(135deg,rgba(255,77,109,0.15),rgba(255,77,109,0.05));border:1px solid rgba(255,77,109,0.3);border-radius:var(--r2);padding:20px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:gap">
+    <div>
+      <div style="font-size:16px;font-weight:600;color:var(--danger);margin-bottom:4px">🚨 Emergency Services</div>
+      <div style="font-size:13px;color:var(--text2)">India national emergency numbers</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <a href="tel:112" style="background:var(--danger);color:#fff;border-radius:var(--r);padding:10px 18px;font-size:13px;font-weight:600;text-decoration:none;display:flex;align-items:center;gap:6px">📞 112 — All Emergency</a>
+      <a href="tel:108" style="background:rgba(255,77,109,0.15);color:var(--danger);border:1px solid rgba(255,77,109,0.4);border-radius:var(--r);padding:10px 18px;font-size:13px;font-weight:600;text-decoration:none">🚑 108 — Ambulance</a>
+      <a href="tel:102" style="background:rgba(255,77,109,0.15);color:var(--danger);border:1px solid rgba(255,77,109,0.4);border-radius:var(--r);padding:10px 18px;font-size:13px;font-weight:600;text-decoration:none">👶 102 — Women & Child</a>
+    </div>
+  </div>
+
+  <div id="contactsList"></div>
+
+  <!-- Add Contact Modal -->
+  <div id="addContactModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:18px;padding:28px;width:min(440px,90vw)">
+      <div style="font-size:17px;font-weight:600;margin-bottom:20px">Add Emergency Contact</div>
+      <div class="form-group"><label>Full Name *</label><input type="text" id="ec-name" placeholder="Parent / Spouse / Friend"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Relationship</label>
+          <select id="ec-rel">
+            <option>Spouse</option><option>Parent</option><option>Sibling</option>
+            <option>Child</option><option>Friend</option><option>Caregiver</option><option>Other</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Phone *</label><input type="tel" id="ec-phone" placeholder="+91 98765 43210"></div>
+      </div>
+      <div class="form-group"><label>Email</label><input type="email" id="ec-email" placeholder="email@example.com"></div>
+      <div class="form-group" style="display:flex;align-items:center;gap:10px">
+        <input type="checkbox" id="ec-primary" style="width:16px;height:16px;accent-color:var(--danger)">
+        <label for="ec-primary" style="margin:0;cursor:pointer">Set as primary emergency contact</label>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn btn-primary" style="flex:1;background:var(--danger);border-color:var(--danger)" onclick="saveContact()">Save Contact</button>
+        <button class="btn" onclick="closeModal('addContactModal')">Cancel</button>
+      </div>
+    </div>
+  </div>`;
+  loadContacts();
+}
+
+async function loadContacts() {
+  const res = await fetch('/api/emergency-contacts');
+  const contacts = await res.json();
+  const el = document.getElementById('contactsList');
+  if (!contacts.length) {
+    el.innerHTML = `<div style="text-align:center;padding:48px 20px;color:var(--text2)">
+      <div style="font-size:48px;margin-bottom:12px">🆘</div>
+      <div style="font-size:15px;margin-bottom:6px">No emergency contacts added</div>
+      <div style="font-size:13px;color:var(--text3)">Add people who should be contacted in an emergency</div>
+    </div>`; return;
+  }
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">` +
+  contacts.map(c => {
+    const relColors = {Spouse:'#ff6eb4',Parent:'#ffb347',Sibling:'#7c6fff',Child:'#00d4c8',Friend:'#00e5a0',Caregiver:'#0099ff'};
+    const color = relColors[c.relationship] || 'var(--text2)';
+    const initials = c.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    return `
+    <div style="background:var(--surface);border:1px solid ${c.is_primary?'rgba(255,77,109,0.35)':'var(--border)'};border-radius:var(--r2);padding:18px;position:relative">
+      ${c.is_primary ? `<div style="position:absolute;top:12px;right:12px;background:rgba(255,77,109,0.15);color:var(--danger);font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;border:1px solid rgba(255,77,109,0.3)">PRIMARY</div>` : `<button onclick="deleteContact(${c.id})" style="position:absolute;top:10px;right:10px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px">✕</button>`}
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div style="width:48px;height:48px;border-radius:12px;background:${color}22;border:1px solid ${color}44;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:16px;color:${color};flex-shrink:0">${initials}</div>
+        <div>
+          <div style="font-weight:600;font-size:15px">${c.name}</div>
+          <div style="font-size:12px;color:${color};margin-top:2px">${c.relationship}</div>
+          ${c.phone ? `<div style="font-size:12px;color:var(--text3);margin-top:1px">📞 ${c.phone}</div>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        ${c.phone ? `
+          <a href="tel:${c.phone}" style="flex:1;text-align:center;background:rgba(0,229,160,0.1);color:var(--success);border:1px solid rgba(0,229,160,0.25);border-radius:var(--r);padding:9px;font-size:12px;font-weight:600;text-decoration:none">📞 Call</a>
+          <a href="sms:${c.phone}?body=Hi ${encodeURIComponent(c.name)}, I need help. Here is my location: https://maps.google.com/?q=my+location" style="flex:1;text-align:center;background:rgba(0,153,255,0.1);color:var(--accent2);border:1px solid rgba(0,153,255,0.25);border-radius:var(--r);padding:9px;font-size:12px;font-weight:600;text-decoration:none">💬 SOS SMS</a>
+        ` : ''}
+        ${!c.is_primary ? `<button onclick="deleteContact(${c.id})" style="background:rgba(255,77,109,0.08);color:var(--danger);border:1px solid rgba(255,77,109,0.2);border-radius:var(--r);padding:9px 12px;font-size:12px;cursor:pointer">🗑</button>` : ''}
+      </div>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+async function saveContact() {
+  const name = document.getElementById('ec-name').value.trim();
+  const phone = document.getElementById('ec-phone').value.trim();
+  if (!name || !phone) { showToast('Name and phone are required','warn'); return; }
+  await fetch('/api/emergency-contacts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    name, relationship: document.getElementById('ec-rel').value,
+    phone, email: document.getElementById('ec-email').value,
+    is_primary: document.getElementById('ec-primary').checked ? 1 : 0
+  })});
+  closeModal('addContactModal');
+  showToast(`${name} added to emergency contacts ✓`);
+  loadContacts();
+}
+
+async function deleteContact(id) {
+  if (!confirm('Remove this contact?')) return;
+  await fetch(`/api/emergency-contacts/${id}`,{method:'DELETE'});
+  showToast('Contact removed','warn');
+  loadContacts();
+}
+
+function showAddContactModal() {
+  document.getElementById('addContactModal').style.display='flex';
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ─── NOTIFICATIONS / REMINDERS ───────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+async function renderNotifications() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `
+  <div class="page-header">
+    <div><div class="page-title">Reminders & Notifications</div><div class="page-sub">Daily summaries and health alerts</div></div>
+    <button class="btn btn-primary" onclick="triggerDailySummary()">📊 Generate Today's Summary</button>
+  </div>
+  <div id="notifList" style="display:flex;flex-direction:column;gap:10px;margin-top:4px"></div>`;
+  loadNotifications();
+}
+
+async function loadNotifications() {
+  const res = await fetch('/api/notifications');
+  const notifs = await res.json();
+  const el = document.getElementById('notifList');
+  if (!notifs.length) {
+    el.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--text2)">
+      <div style="font-size:48px;margin-bottom:12px">🔔</div>
+      <div style="font-size:15px;margin-bottom:6px">No notifications yet</div>
+      <div style="font-size:13px;color:var(--text3)">Generate a daily summary to get started</div>
+    </div>`; return;
+  }
+  const typeColors = {daily:'var(--accent)',medication:'var(--warning)',appointment:'var(--accent2)',alert:'var(--danger)'};
+  const typeIcons  = {daily:'📊',medication:'💊',appointment:'📅',alert:'🚨'};
+  el.innerHTML = notifs.map(n => {
+    const color = typeColors[n.type] || 'var(--accent)';
+    const icon  = typeIcons[n.type] || '🔔';
+    const when  = n.created_at ? new Date(n.created_at).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}) : '';
+    return `
+    <div style="background:var(--surface);border:1px solid var(--border);border-left:3px solid ${color};border-radius:var(--r2);padding:16px 18px;display:flex;gap:14px;align-items:flex-start">
+      <div style="width:36px;height:36px;background:${color}18;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${icon}</div>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:14px;margin-bottom:3px">${n.title}</div>
+        <div style="color:var(--text2);font-size:13px;line-height:1.6">${n.message}</div>
+        ${when ? `<div style="color:var(--text3);font-size:11px;margin-top:6px">🕐 ${when}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function triggerDailySummary() {
+  const res = await fetch('/api/notifications/daily-summary',{method:'POST'});
+  const d = await res.json();
+  showToast('Daily summary generated ✓','ok', 4000);
+  loadNotifications();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ─── MODAL HELPER ────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = 'none';
+}
+// Close modal on outside click
+document.addEventListener('click', e => {
+  ['addDoctorModal','addContactModal'].forEach(id => {
+    const modal = document.getElementById(id);
+    if (modal && e.target === modal) modal.style.display = 'none';
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════
+// ─── ENHANCED APPOINTMENTS ───────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+
+// ─── Init ─────────────────────────────────────────────────────────────
+async function checkApiStatus() {
+  try {
+    const res = await fetch('/api/chat/history');
+    if (res.ok) document.getElementById('apiStatusDot').innerHTML = '🟢 Connected';
+    else document.getElementById('apiStatusDot').innerHTML = '🔴 Error';
+  } catch { document.getElementById('apiStatusDot').innerHTML = '🔴 Offline'; }
+}
+
+window.addEventListener('load', () => {
+  document.getElementById('loadingOverlay').classList.add('hidden');
+  switchTab('chat');
+  checkApiStatus();
+});
+
+</script>
+
+<!-- ── PWA: Service Worker + Install Prompt ─────────────────────────── -->
+<script>
+// Register service worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/static/sw.js')
+      .then(reg => {
+        console.log('[SW] Registered:', reg.scope);
+        // Check for updates every 60s
+        setInterval(() => reg.update(), 60000);
+        reg.addEventListener('updatefound', () => {
+          const newSW = reg.installing;
+          newSW.addEventListener('statechange', () => {
+            if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+              showPwaToast('App updated! Refresh for the latest version.', 'update');
+            }
+          });
+        });
+      })
+      .catch(err => console.warn('[SW] Registration failed:', err));
+  });
+}
+
+// Install prompt (Android Chrome "Add to Home Screen")
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Show install banner after 3 seconds if not already installed
+  setTimeout(() => {
+    if (deferredPrompt && !window.matchMedia('(display-mode: standalone)').matches) {
+      showInstallBanner();
+    }
+  }, 3000);
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  const banner = document.getElementById('pwaInstallBanner');
+  if (banner) banner.remove();
+  showPwaToast('HealthMate installed! 🎉', 'ok');
+});
+
+function showInstallBanner() {
+  if (document.getElementById('pwaInstallBanner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'pwaInstallBanner';
+  banner.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;flex:1">
+      <img src="/static/icons/icon-72x72.png" style="width:40px;height:40px;border-radius:10px;flex-shrink:0">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:#e8edf5">Add HealthMate to Home Screen</div>
+        <div style="font-size:11px;color:#8a9ab8;margin-top:1px">Works offline · No app store needed</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0">
+      <button onclick="installPwa()" style="padding:8px 16px;background:linear-gradient(135deg,#00d4c8,#00b8ad);color:#001a1a;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Install</button>
+      <button onclick="document.getElementById('pwaInstallBanner').remove()" style="padding:8px 10px;background:transparent;border:1px solid rgba(255,255,255,0.1);color:#8a9ab8;border-radius:8px;font-size:13px;cursor:pointer">✕</button>
+    </div>`;
+  banner.style.cssText = `
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    background:#141f35;border:1px solid rgba(0,212,200,0.2);border-radius:16px;
+    padding:14px 16px;display:flex;align-items:center;gap:12px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.5);z-index:99999;
+    width:calc(100% - 32px);max-width:420px;
+    animation:slideUp 0.3s ease;
+  `;
+  // Add animation keyframe if not present
+  if (!document.getElementById('pwaStyle')) {
+    const st = document.createElement('style');
+    st.id = 'pwaStyle';
+    st.textContent = '@keyframes slideUp{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}';
+    document.head.appendChild(st);
+  }
+  document.body.appendChild(banner);
+}
+
+async function installPwa() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  const banner = document.getElementById('pwaInstallBanner');
+  if (banner) banner.remove();
+}
+
+function showPwaToast(msg, type) {
+  if (typeof showToast === 'function') {
+    showToast(msg, type);
+  }
+}
+
+// iOS: show "Add to Home Screen" instructions (Safari doesn't support beforeinstallprompt)
+const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isInStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+if (isIos && !isInStandalone) {
+  setTimeout(() => {
+    if (document.getElementById('pwaInstallBanner') || document.getElementById('iosInstallTip')) return;
+    const tip = document.createElement('div');
+    tip.id = 'iosInstallTip';
+    tip.innerHTML = `
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <img src="/static/icons/icon-72x72.png" style="width:40px;height:40px;border-radius:10px;flex-shrink:0;margin-top:2px">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600;color:#e8edf5;margin-bottom:4px">Install HealthMate on your iPhone</div>
+          <div style="font-size:12px;color:#8a9ab8;line-height:1.6">
+            Tap <strong style="color:#00d4c8">Share</strong> <span style="font-size:14px">⬆️</span> then
+            <strong style="color:#00d4c8">"Add to Home Screen"</strong> <span style="font-size:14px">➕</span>
+          </div>
+        </div>
+        <button onclick="document.getElementById('iosInstallTip').remove()" style="background:transparent;border:none;color:#8a9ab8;font-size:18px;cursor:pointer;padding:0;line-height:1;flex-shrink:0">✕</button>
+      </div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:center">
+        <div style="font-size:11px;color:#4a5a78">Works offline · Looks & feels like a native app</div>
+      </div>`;
+    tip.style.cssText = `
+      position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+      background:#141f35;border:1px solid rgba(0,212,200,0.2);border-radius:16px;
+      padding:16px;box-shadow:0 8px 32px rgba(0,0,0,0.5);z-index:99999;
+      width:calc(100% - 32px);max-width:420px;
+    `;
+    document.body.appendChild(tip);
+  }, 4000);
+}
+</script>
+</body>
+</html>
