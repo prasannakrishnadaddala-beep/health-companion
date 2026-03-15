@@ -191,8 +191,10 @@ def get_ai_client():
     try:
         import anthropic, httpx
         transport = httpx.HTTPTransport(retries=2)
-        http_client = httpx.Client(transport=transport, timeout=60.0)
-        return anthropic.Anthropic(api_key=key, http_client=http_client)
+        # timeout must be passed to the Anthropic client directly — it controls
+        # the SDK's own internal httpx session, not a separate http_client wrapper.
+        http_client = httpx.Client(transport=transport, timeout=90.0)
+        return anthropic.Anthropic(api_key=key, http_client=http_client, timeout=90.0)
     except Exception:
         return None
 
@@ -1286,13 +1288,13 @@ def send_diet_email():
     total_water = sum(e['water_ml'] or 0 for e in entries)
 
     # Generate AI report
-    client = get_ai_client()
+    ai_client = get_ai_client()
     ai_report = ""
-    if client and entries:
+    if ai_client and entries:
         food_summary = "\n".join([f"- {e['meal_type']}: {e['food_items']} ({e['calories']} kcal)" for e in entries])
         profile_ctx = f"Patient: {profile.get('full_name','') if profile else ''}, {profile.get('age','?') if profile else '?'}y, Goals: {profile.get('health_goals','') if profile else ''}" if profile else ""
         try:
-            msg = client.messages.create(model="claude-opus-4-5", max_tokens=600,
+            msg = ai_client.messages.create(model="claude-opus-4-5", max_tokens=600,
                 messages=[{"role":"user","content":f"""Write a friendly, encouraging daily diet summary email for a health app user.
 
 {profile_ctx}
@@ -1350,8 +1352,8 @@ Keep it warm, personal, concise. No markdown headers."""}])
 
     try:
         transport = http_requests.HTTPTransport(retries=2)
-        with http_requests.Client(transport=transport, timeout=30.0) as client:
-            response = client.post(
+        with http_requests.Client(transport=transport, timeout=30.0) as resend_client:
+            response = resend_client.post(
                 "https://api.resend.com/emails",
                 headers={
                     "Authorization": f"Bearer {resend_api_key}",
@@ -1364,7 +1366,11 @@ Keep it warm, personal, concise. No markdown headers."""}])
                     "html": html
                 }
             )
-        data = response.json()
+        # Resend can return HTML error pages (e.g. on 401/500) — parse safely
+        try:
+            data = response.json()
+        except Exception:
+            return jsonify({"error": f"Email service error (HTTP {response.status_code}). Check RESEND_API_KEY and SMTP_USER in Railway Variables."}), 400
         if response.status_code not in (200, 201):
             return jsonify({"error": f"Email failed: {data.get('message', data)}"}), 400
         return jsonify({"status":"ok","message":f"Diet report sent to {to_email}"})
