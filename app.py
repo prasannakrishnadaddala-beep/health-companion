@@ -1210,9 +1210,7 @@ Be accurate for Indian foods. Estimate typical restaurant/home serving sizes."""
 @app.route("/api/send-diet-email", methods=["POST"])
 @login_required
 def send_diet_email():
-    import smtplib
-    from email.mime.text import MIMEText
-    from email.mime.multipart import MIMEMultipart
+    import requests as http_requests
 
     d = request.json or {}
     username = session.get("username","admin")
@@ -1233,13 +1231,13 @@ def send_diet_email():
     if not to_email or "@" not in to_email:
         return jsonify({"error": "No email address found. Please add your email in My Profile → Save Profile first."}), 400
 
-    smtp_host = os.environ.get("SMTP_HOST","smtp.gmail.com")
-    smtp_port = int(os.environ.get("SMTP_PORT","587"))
-    smtp_user = os.environ.get("SMTP_USER","")
-    smtp_pass = os.environ.get("SMTP_PASS","")
+    resend_api_key = os.environ.get("RESEND_API_KEY","")
+    smtp_user = os.environ.get("SMTP_USER","")  # used as "from" address
 
-    if not smtp_user or not smtp_pass:
-        return jsonify({"error": "Email not configured. Add SMTP_USER and SMTP_PASS to Railway Variables."}), 400
+    if not resend_api_key:
+        return jsonify({"error": "Email not configured. Add RESEND_API_KEY to Railway Variables."}), 400
+    if not smtp_user:
+        return jsonify({"error": "Sender email not configured. Add SMTP_USER to Railway Variables."}), 400
 
     # Get today's diet data
     username = session.get("username","admin")
@@ -1324,16 +1322,23 @@ Keep it warm, personal, concise. No markdown headers."""}])
 </body></html>"""
 
     try:
-        msg_email = MIMEMultipart("alternative")
-        msg_email["Subject"] = f"HealthMate Daily Report — {today}"
-        msg_email["From"] = smtp_user
-        msg_email["To"] = to_email
-        msg_email.attach(MIMEText(html, "html"))
-
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
-            server.starttls()
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(smtp_user, to_email, msg_email.as_string())
+        response = http_requests.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {resend_api_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "from": smtp_user,
+                "to": [to_email],
+                "subject": f"HealthMate Daily Report — {today}",
+                "html": html
+            },
+            timeout=15
+        )
+        data = response.json()
+        if response.status_code != 200:
+            return jsonify({"error": f"Email failed: {data}"}), 400
         return jsonify({"status":"ok","message":f"Diet report sent to {to_email}"})
     except Exception as e:
         return jsonify({"error": f"Email failed: {str(e)}"}), 400
