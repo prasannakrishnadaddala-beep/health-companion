@@ -183,8 +183,10 @@ def get_ai_client():
     if not key:
         return None
     try:
-        import anthropic
-        return anthropic.Anthropic(api_key=key)
+        import anthropic, httpx
+        transport = httpx.HTTPTransport(retries=2)
+        http_client = httpx.Client(transport=transport, timeout=60.0)
+        return anthropic.Anthropic(api_key=key, http_client=http_client)
     except Exception:
         return None
 
@@ -1204,13 +1206,16 @@ Be accurate for Indian foods. Estimate typical restaurant/home serving sizes."""
             return jsonify(json.loads(match.group()))
         return jsonify({"error": "Could not analyze photo"})
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        err = str(e)
+        if "Connection" in err or "Network" in err or "timeout" in err.lower():
+            return jsonify({"error": "AI service temporarily unreachable. Please try again in a moment."}), 400
+        return jsonify({"error": err}), 400
 
 # ── Email Diet Report ──────────────────────────────────────────────────────────
 @app.route("/api/send-diet-email", methods=["POST"])
 @login_required
 def send_diet_email():
-    import requests as http_requests
+    import httpx as http_requests
 
     d = request.json or {}
     username = session.get("username","admin")
@@ -1322,24 +1327,27 @@ Keep it warm, personal, concise. No markdown headers."""}])
 </body></html>"""
 
     try:
-        response = http_requests.post(
-            "https://api.resend.com/emails",
-            headers={
-                "Authorization": f"Bearer {resend_api_key}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "from": smtp_user,
-                "to": [to_email],
-                "subject": f"HealthMate Daily Report — {today}",
-                "html": html
-            },
-            timeout=15
-        )
+        transport = http_requests.HTTPTransport(retries=2)
+        with http_requests.Client(transport=transport, timeout=30.0) as client:
+            response = client.post(
+                "https://api.resend.com/emails",
+                headers={
+                    "Authorization": f"Bearer {resend_api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "from": smtp_user,
+                    "to": [to_email],
+                    "subject": f"HealthMate Daily Report — {today}",
+                    "html": html
+                }
+            )
         data = response.json()
-        if response.status_code != 200:
-            return jsonify({"error": f"Email failed: {data}"}), 400
+        if response.status_code not in (200, 201):
+            return jsonify({"error": f"Email failed: {data.get('message', data)}"}), 400
         return jsonify({"status":"ok","message":f"Diet report sent to {to_email}"})
+    except http_requests.ConnectError:
+        return jsonify({"error": "Cannot reach Resend email service. Check Railway outbound network or upgrade plan."}), 400
     except Exception as e:
         return jsonify({"error": f"Email failed: {str(e)}"}), 400
 
