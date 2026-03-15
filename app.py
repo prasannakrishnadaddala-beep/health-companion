@@ -57,6 +57,9 @@ def init_db():
             "CREATE TABLE IF NOT EXISTS diet_log (id SERIAL PRIMARY KEY, date TEXT, meal_type TEXT, food_items TEXT, calories INTEGER, water_ml INTEGER, notes TEXT)",
             "CREATE TABLE IF NOT EXISTS appointments (id SERIAL PRIMARY KEY, doctor_name TEXT, specialty TEXT, date TEXT, time TEXT, location TEXT, reason TEXT, notes TEXT, reminder_sent INTEGER DEFAULT 0, completed INTEGER DEFAULT 0)",
             "CREATE TABLE IF NOT EXISTS chat_history (id SERIAL PRIMARY KEY, role TEXT, content TEXT, timestamp TEXT)",
+            "CREATE TABLE IF NOT EXISTS emergency_contacts (id SERIAL PRIMARY KEY, username TEXT, name TEXT, relationship TEXT, phone TEXT, email TEXT, is_primary INTEGER DEFAULT 0, created_at TEXT)",
+            "CREATE TABLE IF NOT EXISTS doctors (id SERIAL PRIMARY KEY, username TEXT, name TEXT, specialty TEXT, phone TEXT, email TEXT, hospital TEXT, address TEXT, notes TEXT, created_at TEXT)",
+            "CREATE TABLE IF NOT EXISTS notifications (id SERIAL PRIMARY KEY, username TEXT, title TEXT, message TEXT, type TEXT, scheduled_at TEXT, sent INTEGER DEFAULT 0, created_at TEXT)",
         ]
         for s in stmts:
             try:
@@ -76,6 +79,9 @@ def init_db():
             CREATE TABLE IF NOT EXISTS diet_log (id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, meal_type TEXT, food_items TEXT, calories INTEGER, water_ml INTEGER, notes TEXT);
             CREATE TABLE IF NOT EXISTS appointments (id INTEGER PRIMARY KEY AUTOINCREMENT, doctor_name TEXT, specialty TEXT, date TEXT, time TEXT, location TEXT, reason TEXT, notes TEXT, reminder_sent INTEGER DEFAULT 0, completed INTEGER DEFAULT 0);
             CREATE TABLE IF NOT EXISTS chat_history (id INTEGER PRIMARY KEY AUTOINCREMENT, role TEXT, content TEXT, timestamp TEXT);
+            CREATE TABLE IF NOT EXISTS emergency_contacts (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, name TEXT, relationship TEXT, phone TEXT, email TEXT, is_primary INTEGER DEFAULT 0, created_at TEXT);
+            CREATE TABLE IF NOT EXISTS doctors (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, name TEXT, specialty TEXT, phone TEXT, email TEXT, hospital TEXT, address TEXT, notes TEXT, created_at TEXT);
+            CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, title TEXT, message TEXT, type TEXT, scheduled_at TEXT, sent INTEGER DEFAULT 0, created_at TEXT);
         """)
         conn.commit()
     # ── Migrations: add columns if they don't exist ──────────────────
@@ -1366,6 +1372,146 @@ Keep it warm, personal, concise. No markdown headers."""}])
         return jsonify({"error": "Cannot reach Resend email service. Check Railway outbound network or upgrade plan."}), 400
     except Exception as e:
         return jsonify({"error": f"Email failed: {str(e)}"}), 400
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ── Emergency Contacts ────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route("/api/emergency-contacts", methods=["GET"])
+@login_required
+def get_emergency_contacts():
+    u = session.get("username","admin")
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT * FROM emergency_contacts WHERE username=%s ORDER BY is_primary DESC, id",(u,))
+        rows = [dict(r) for r in cur.fetchall()]; cur.close()
+    else:
+        rows = [dict(r) for r in conn.execute("SELECT * FROM emergency_contacts WHERE username=? ORDER BY is_primary DESC, id",(u,)).fetchall()]
+    conn.close(); return jsonify(rows)
+
+@app.route("/api/emergency-contacts", methods=["POST"])
+@login_required
+def add_emergency_contact():
+    d = request.json; u = session.get("username","admin")
+    conn = get_db()
+    now = datetime.datetime.now().isoformat()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor()
+        cur.execute("INSERT INTO emergency_contacts (username,name,relationship,phone,email,is_primary,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+            (u, d.get("name",""), d.get("relationship",""), d.get("phone",""), d.get("email",""), int(d.get("is_primary",0)), now))
+        cur.close()
+    else:
+        conn.execute("INSERT INTO emergency_contacts (username,name,relationship,phone,email,is_primary,created_at) VALUES (?,?,?,?,?,?,?)",
+            (u, d.get("name",""), d.get("relationship",""), d.get("phone",""), d.get("email",""), int(d.get("is_primary",0)), now))
+    conn.commit(); conn.close(); return jsonify({"status":"ok"})
+
+@app.route("/api/emergency-contacts/<int:cid>", methods=["DELETE"])
+@login_required
+def delete_emergency_contact(cid):
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor(); cur.execute("DELETE FROM emergency_contacts WHERE id=%s",(cid,)); cur.close()
+    else:
+        conn.execute("DELETE FROM emergency_contacts WHERE id=?",(cid,))
+    conn.commit(); conn.close(); return jsonify({"status":"ok"})
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ── Doctors ───────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route("/api/doctors", methods=["GET"])
+@login_required
+def get_doctors():
+    u = session.get("username","admin")
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT * FROM doctors WHERE username=%s ORDER BY id",(u,))
+        rows = [dict(r) for r in cur.fetchall()]; cur.close()
+    else:
+        rows = [dict(r) for r in conn.execute("SELECT * FROM doctors WHERE username=? ORDER BY id",(u,)).fetchall()]
+    conn.close(); return jsonify(rows)
+
+@app.route("/api/doctors", methods=["POST"])
+@login_required
+def add_doctor():
+    d = request.json; u = session.get("username","admin")
+    conn = get_db()
+    now = datetime.datetime.now().isoformat()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor()
+        cur.execute("INSERT INTO doctors (username,name,specialty,phone,email,hospital,address,notes,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (u, d.get("name",""), d.get("specialty",""), d.get("phone",""), d.get("email",""), d.get("hospital",""), d.get("address",""), d.get("notes",""), now))
+        cur.close()
+    else:
+        conn.execute("INSERT INTO doctors (username,name,specialty,phone,email,hospital,address,notes,created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            (u, d.get("name",""), d.get("specialty",""), d.get("phone",""), d.get("email",""), d.get("hospital",""), d.get("address",""), d.get("notes",""), now))
+    conn.commit(); conn.close(); return jsonify({"status":"ok"})
+
+@app.route("/api/doctors/<int:did>", methods=["DELETE"])
+@login_required
+def delete_doctor(did):
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor(); cur.execute("DELETE FROM doctors WHERE id=%s",(did,)); cur.close()
+    else:
+        conn.execute("DELETE FROM doctors WHERE id=?",(did,))
+    conn.commit(); conn.close(); return jsonify({"status":"ok"})
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ── Notifications / Reminders ─────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route("/api/notifications", methods=["GET"])
+@login_required
+def get_notifications():
+    u = session.get("username","admin")
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT * FROM notifications WHERE username=%s ORDER BY created_at DESC LIMIT 50",(u,))
+        rows = [dict(r) for r in cur.fetchall()]; cur.close()
+    else:
+        rows = [dict(r) for r in conn.execute("SELECT * FROM notifications WHERE username=? ORDER BY created_at DESC LIMIT 50",(u,)).fetchall()]
+    conn.close(); return jsonify(rows)
+
+@app.route("/api/notifications/daily-summary", methods=["POST"])
+@login_required
+def send_daily_notification():
+    """Generate and store a daily health summary notification"""
+    u = session.get("username","admin")
+    today = datetime.date.today().isoformat()
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT * FROM diet_log WHERE date=%s AND username=%s",(today,u))
+        diet = cur.fetchall()
+        cur.execute("SELECT * FROM appointments WHERE date=%s AND username=%s AND completed=0",(today,u))
+        appts = cur.fetchall(); cur.close()
+    else:
+        diet = conn.execute("SELECT * FROM diet_log WHERE date=? AND username=?",(today,u)).fetchall()
+        appts = conn.execute("SELECT * FROM appointments WHERE date=? AND username=? AND completed=0",(today,u)).fetchall()
+
+    total_cal = sum(e["calories"] or 0 for e in diet)
+    msgs = []
+    if total_cal == 0: msgs.append("You haven't logged any meals today.")
+    elif total_cal < 1200: msgs.append(f"Only {total_cal} kcal logged — make sure you're eating enough!")
+    else: msgs.append(f"Great job! {total_cal} kcal logged today.")
+    if appts: msgs.append(f"You have {len(appts)} appointment(s) today!")
+    message = " ".join(msgs)
+
+    now = datetime.datetime.now().isoformat()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor()
+        cur.execute("INSERT INTO notifications (username,title,message,type,scheduled_at,sent,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+            (u, "Daily Health Summary", message, "daily", now, 1, now)); cur.close()
+    else:
+        conn.execute("INSERT INTO notifications (username,title,message,type,scheduled_at,sent,created_at) VALUES (?,?,?,?,?,?,?)",
+            (u, "Daily Health Summary", message, "daily", now, 1, now))
+    conn.commit(); conn.close()
+    return jsonify({"status":"ok","message":message})
 
 # ── Init on startup ───────────────────────────────────────────────────────────
 with app.app_context():
