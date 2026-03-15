@@ -629,6 +629,20 @@ def delete_diet(eid):
         conn.execute("DELETE FROM diet_log WHERE id=?",(eid,))
     conn.commit(); conn.close(); return jsonify({"status":"ok"})
 
+@app.route("/api/diet/<int:eid>", methods=["PATCH"])
+@login_required
+def update_diet(eid):
+    d = request.json; conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor()
+        cur.execute("UPDATE diet_log SET food_items=%s, meal_type=%s, calories=%s, water_ml=%s WHERE id=%s",
+            (d.get("food_items"), d.get("meal_type"), d.get("calories",0), d.get("water_ml",0), eid))
+        cur.close()
+    else:
+        conn.execute("UPDATE diet_log SET food_items=?, meal_type=?, calories=?, water_ml=? WHERE id=?",
+            (d.get("food_items"), d.get("meal_type"), d.get("calories",0), d.get("water_ml",0), eid))
+    conn.commit(); conn.close(); return jsonify({"status":"ok"})
+
 @app.route("/api/analyze-calories", methods=["POST"])
 @login_required
 def analyze_calories():
