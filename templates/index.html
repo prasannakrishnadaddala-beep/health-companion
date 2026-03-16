@@ -553,20 +553,37 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
   .bottom-nav {
     display: flex !important; position: fixed; bottom: 0; left: 0; right: 0;
     height: var(--nav-h); background: var(--hero-bg); z-index: 200;
-    padding: 0 6px; padding-bottom: env(safe-area-inset-bottom); align-items: stretch;
+    padding: 0; padding-bottom: env(safe-area-inset-bottom); align-items: stretch;
+    border-top: 1px solid rgba(255,255,255,0.06);
   }
   .bnav-item {
     flex: 1; display: flex; flex-direction: column; align-items: center;
-    justify-content: center; gap: 3px; cursor: pointer;
+    justify-content: center; gap: 2px; cursor: pointer;
     color: rgba(255,255,255,0.38); font-size: 10px; font-weight: 700;
-    letter-spacing: 0.02em; transition: color 0.18s; padding: 6px 2px;
-    position: relative; border: none; background: none;
+    letter-spacing: 0.02em; transition: color 0.18s;
+    padding: 8px 0 6px; position: relative; border: none; background: none;
+    -webkit-tap-highlight-color: transparent;
   }
-  .bnav-item .bnav-icon { font-size: 21px; line-height: 1; transition: transform 0.18s; }
+  /* Uniform icon container — prevents emoji height differences */
+  .bnav-item .bnav-icon {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 19px; line-height: 1;
+    transition: transform 0.18s;
+    /* Normalise emoji baseline across browsers */
+    font-family: "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+  }
+  .bnav-item span:last-of-type {
+    font-size: 10px; font-weight: 700; line-height: 1;
+    letter-spacing: 0.03em;
+  }
   .bnav-item.active { color: var(--accent); }
-  .bnav-item.active .bnav-icon { transform: scale(1.12); }
-  .bnav-item.active::before { content: ''; position: absolute; top: 0; left: 22%; right: 22%; height: 2px; background: var(--accent); border-radius: 0 0 4px 4px; }
-  .bnav-badge { position: absolute; top: 6px; right: calc(50% - 22px); background: var(--danger); color: white; font-size: 9px; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 2px solid var(--hero-bg); padding: 0 3px; }
+  .bnav-item.active .bnav-icon { transform: scale(1.1); }
+  .bnav-item.active::before {
+    content: ''; position: absolute; top: 0; left: 18%; right: 18%;
+    height: 2.5px; background: var(--accent); border-radius: 0 0 4px 4px;
+  }
+  .bnav-badge { position: absolute; top: 5px; right: calc(50% - 23px); background: var(--danger); color: white; font-size: 9px; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 2px solid var(--hero-bg); padding: 0 3px; }
 
   /* More drawer */
   .more-drawer { display: none; position: fixed; bottom: var(--nav-h); left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); z-index: 190; padding: 12px 16px 20px; border-radius: 20px 20px 0 0; box-shadow: 0 -12px 40px rgba(0,0,0,0.1); }
@@ -1438,14 +1455,24 @@ async function renderDiet() {
           </div>
           <div class="form-group">
             <label>Food Items</label>
-            <div style="display:flex;gap:8px">
-              <input type="text" id="d-food" placeholder="e.g. 1 cup rice + dal + bitter gourd" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();analyzeCals();}">
-              <button class="btn" onclick="analyzeCals()" id="analyzeBtn" style="white-space:nowrap;background:rgba(232,255,71,0.15);color:var(--accent);border-color:rgba(0,0,0,0.2)">✨ Analyze</button>
-              <label for="foodPhotoInput" style="cursor:pointer">
-                <div class="btn" style="background:rgba(0,153,255,0.1);color:var(--accent2);border-color:rgba(0,153,255,0.3)">📸 Photo</div>
+            <textarea id="d-food" rows="3"
+              placeholder="e.g. 1 cup rice + dal + sabzi, or describe your plate in detail for better AI calorie analysis…"
+              style="width:100%;resize:vertical;min-height:80px;padding:11px 14px;border:1.5px solid var(--border2);border-radius:var(--r);background:var(--surface2);color:var(--text);font-size:14px;font-family:var(--font);line-height:1.55;transition:all 0.15s"
+              onkeydown="if(event.key==='Enter'&&event.ctrlKey){event.preventDefault();analyzeCals();}"
+              onfocus="this.style.borderColor='var(--text)';this.style.background='var(--surface)'"
+              onblur="this.style.borderColor='var(--border2)';this.style.background='var(--surface2)'"></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button class="btn btn-primary" onclick="analyzeCals()" id="analyzeBtn" style="flex:1;justify-content:center;gap:6px">
+                ✨ Analyze Calories with AI
+              </button>
+              <label for="foodPhotoInput" style="cursor:pointer;flex-shrink:0">
+                <div class="btn" style="background:rgba(59,130,246,0.1);color:var(--blue);border-color:rgba(59,130,246,0.3);gap:6px">
+                  📸 Photo
+                </div>
               </label>
               <input type="file" id="foodPhotoInput" accept="image/*" style="display:none" onchange="analyzePhoto(this)">
             </div>
+            <p style="font-size:11px;color:var(--text3);margin-top:5px">Tip: Ctrl+Enter to analyze · Be specific for accurate calories</p>
           </div>
           <div id="aiCalResult" style="display:none;background:var(--color-background-success);border:0.5px solid var(--color-border-success);border-radius:var(--border-radius-md);padding:10px 12px;font-size:13px;margin-bottom:10px;color:var(--color-text-success)"></div>
           <div class="form-row">
@@ -1542,16 +1569,16 @@ async function loadDiet() {
       }).join('')}
     </div>
     <!-- Edit Diet Modal -->
-    <div id="editDietModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(4px)" onclick="if(event.target===this)closeEditDiet()">
-      <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:24px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+    <div id="editDietModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(4px);padding:16px" onclick="if(event.target===this)closeEditDiet()">
+      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:20px;padding:24px;width:100%;max-width:460px;box-shadow:var(--shadow-lg)">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-          <div style="font-size:16px;font-weight:600;color:var(--text)">✏️ Edit Meal Entry</div>
-          <button onclick="closeEditDiet()" style="width:30px;height:30px;border-radius:8px;border:1px solid var(--border2);background:transparent;cursor:pointer;color:var(--text3);font-size:16px;display:flex;align-items:center;justify-content:center">×</button>
+          <div style="font-size:17px;font-weight:800;color:var(--text);font-family:var(--display)">✏️ Edit Meal Entry</div>
+          <button onclick="closeEditDiet()" style="width:32px;height:32px;border-radius:50%;border:1.5px solid var(--border2);background:var(--surface2);cursor:pointer;color:var(--text3);font-size:16px;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background='var(--surface2)'">×</button>
         </div>
         <input type="hidden" id="editDietId">
         <div class="form-group">
           <label>Meal Type</label>
-          <select id="editDietMeal" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--r);background:var(--bg3);color:var(--text);font-size:13px;font-family:var(--font)">
+          <select id="editDietMeal" style="width:100%;padding:10px 14px;border:1.5px solid var(--border2);border-radius:var(--r);background:var(--surface2);color:var(--text);font-size:14px;font-family:var(--font)">
             <option value="Breakfast">🌅 Breakfast</option>
             <option value="Lunch">☀️ Lunch</option>
             <option value="Snack">🍎 Snack</option>
@@ -1560,21 +1587,24 @@ async function loadDiet() {
         </div>
         <div class="form-group">
           <label>Food Items</label>
-          <textarea id="editDietFood" rows="3" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--r);background:var(--bg3);color:var(--text);font-size:13px;font-family:var(--font);resize:vertical;line-height:1.5"></textarea>
+          <textarea id="editDietFood" rows="4"
+            style="width:100%;padding:11px 14px;border:1.5px solid var(--border2);border-radius:var(--r);background:var(--surface2);color:var(--text);font-size:14px;font-family:var(--font);resize:vertical;min-height:90px;line-height:1.55;transition:all 0.15s"
+            onfocus="this.style.borderColor='var(--text)';this.style.background='var(--surface)'"
+            onblur="this.style.borderColor='var(--border2)';this.style.background='var(--surface2)'"></textarea>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
           <div class="form-group" style="margin-bottom:0">
             <label>Calories (kcal)</label>
-            <input type="number" id="editDietCal" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--r);background:var(--bg3);color:var(--text);font-size:13px;font-family:var(--font)">
+            <input type="number" id="editDietCal" style="width:100%;padding:10px 14px;border:1.5px solid var(--border2);border-radius:var(--r);background:var(--surface2);color:var(--text);font-size:14px;font-family:var(--font)">
           </div>
           <div class="form-group" style="margin-bottom:0">
             <label>Water (ml)</label>
-            <input type="number" id="editDietWater" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--r);background:var(--bg3);color:var(--text);font-size:13px;font-family:var(--font)">
+            <input type="number" id="editDietWater" style="width:100%;padding:10px 14px;border:1.5px solid var(--border2);border-radius:var(--r);background:var(--surface2);color:var(--text);font-size:14px;font-family:var(--font)">
           </div>
         </div>
         <div style="display:flex;gap:10px;margin-top:20px">
-          <button onclick="closeEditDiet()" style="flex:1;padding:10px;border:1px solid var(--border2);border-radius:var(--r);background:transparent;cursor:pointer;color:var(--text2);font-size:14px;font-family:var(--font)">Cancel</button>
-          <button onclick="saveEditDiet()" style="flex:2;padding:10px;border:none;border-radius:var(--r);background:linear-gradient(135deg,var(--accent),#00b8ad);cursor:pointer;color:#001a1a;font-size:14px;font-weight:600;font-family:var(--font)">Save Changes</button>
+          <button onclick="closeEditDiet()" style="flex:1;padding:12px;border:1.5px solid var(--border2);border-radius:var(--rpill);background:transparent;cursor:pointer;color:var(--text2);font-size:14px;font-weight:600;font-family:var(--font);transition:all 0.15s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='transparent'">Cancel</button>
+          <button onclick="saveEditDiet()" style="flex:2;padding:12px;border:none;border-radius:var(--rpill);background:var(--accent);cursor:pointer;color:var(--accent-fg);font-size:14px;font-weight:700;font-family:var(--font);box-shadow:0 4px 16px rgba(232,255,71,0.3);transition:all 0.15s" onmouseover="this.style.boxShadow='0 6px 24px rgba(232,255,71,0.45)'" onmouseout="this.style.boxShadow='0 4px 16px rgba(232,255,71,0.3)'">Save Changes</button>
         </div>
       </div>
     </div>
