@@ -37,37 +37,39 @@
 </style>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Syne:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
 :root {
-  --bg: #060b14;
-  --bg2: #0d1525;
-  --bg3: #111d33;
-  --surface: #141f35;
-  --surface2: #1a2840;
-  --surface3: #1f3050;
+  --bg: #070c18;
+  --bg2: #0c1524;
+  --bg3: #101e32;
+  --surface: #131e33;
+  --surface2: #182540;
+  --surface3: #1d2d4e;
   --border: rgba(255,255,255,0.07);
   --border2: rgba(255,255,255,0.12);
-  --border3: rgba(255,255,255,0.18);
-  --text: #e8edf5;
-  --text2: #8a9ab8;
-  --text3: #4a5a78;
-  --accent: #00d4c8;
-  --accent2: #0099ff;
-  --accent3: #7c6fff;
-  --danger: #ff4d6d;
-  --warning: #ffb347;
-  --success: #00e5a0;
+  --border3: rgba(255,255,255,0.2);
+  --text: #edf1fa;
+  --text2: #8494b4;
+  --text3: #44567a;
+  --muted: #8494b4;
+  --accent: #22d3c8;
+  --accent2: #3b9eff;
+  --accent3: #8b7fff;
+  --danger: #ff4d72;
+  --warning: #ffb830;
+  --success: #10dfa0;
   --pink: #ff6eb4;
-  --font: 'DM Sans', sans-serif;
-  --mono: 'DM Mono', monospace;
-  --display: 'Syne', sans-serif;
+  --font: 'Plus Jakarta Sans', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+  --display: 'Space Grotesk', sans-serif;
   --r: 10px;
   --r2: 14px;
-  --r3: 18px;
-  --glow: 0 0 20px rgba(0,212,200,0.15);
-  --glow2: 0 0 30px rgba(0,153,255,0.2);
+  --r3: 20px;
+  --glow: 0 0 24px rgba(34,211,200,0.18);
+  --glow2: 0 0 30px rgba(59,158,255,0.2);
+  --nav-h: 64px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 @keyframes slideIn { from { transform: translateX(60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
@@ -321,15 +323,164 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 @media (max-width: 1024px) {
   .grid-4 { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ═══════════════════════════════════════════════
+   MOBILE-FIRST REDESIGN — Bottom Navigation
+═══════════════════════════════════════════════ */
 @media (max-width: 768px) {
-  .sidebar { width: 64px; }
-  .sidebar .nav-item span:not(.nav-icon) { display: none; }
-  .sidebar-header .logo-title, .sidebar-header .logo-sub { display: none; }
-  .sidebar-footer .status-dot span { display: none; }
-  .main { margin-left: 64px; padding: 16px; }
+  /* Hide desktop sidebar, show bottom nav */
+  .sidebar { display: none !important; }
+  .main { margin-left: 0 !important; padding: 12px 14px 80px !important; }
+
+  /* Bottom navigation bar */
+  .bottom-nav {
+    display: flex !important;
+    position: fixed; bottom: 0; left: 0; right: 0;
+    height: var(--nav-h);
+    background: var(--bg2);
+    border-top: 1px solid var(--border2);
+    z-index: 200;
+    padding: 0 4px;
+    padding-bottom: env(safe-area-inset-bottom);
+    align-items: stretch;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .bnav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 3px; cursor: pointer;
+    color: var(--text3); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.02em; transition: color 0.2s; padding: 6px 2px;
+    position: relative; border: none; background: none;
+  }
+  .bnav-item .bnav-icon {
+    font-size: 20px; line-height: 1;
+    transition: transform 0.2s;
+  }
+  .bnav-item.active { color: var(--accent); }
+  .bnav-item.active .bnav-icon { transform: scale(1.15); }
+  .bnav-item.active::after {
+    content: '';
+    position: absolute; top: 0; left: 20%; right: 20%; height: 2px;
+    background: var(--accent); border-radius: 0 0 4px 4px;
+  }
+  .bnav-badge {
+    position: absolute; top: 6px; right: calc(50% - 18px);
+    background: var(--danger); color: white;
+    font-size: 9px; font-weight: 700;
+    min-width: 16px; height: 16px;
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--bg2);
+    padding: 0 3px;
+  }
+
+  /* "More" drawer overlay */
+  .more-drawer {
+    display: none;
+    position: fixed; bottom: var(--nav-h); left: 0; right: 0;
+    background: var(--bg2); border-top: 1px solid var(--border2);
+    z-index: 190; padding: 12px 16px 16px;
+    border-radius: 20px 20px 0 0;
+    animation: slideUp 0.2s ease;
+  }
+  .more-drawer.open { display: block; }
+  .more-drawer-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  }
+  .more-item {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 12px 6px; border-radius: var(--r2);
+    background: var(--surface); cursor: pointer;
+    font-size: 11px; color: var(--text2); font-weight: 500;
+    transition: all 0.15s; border: 1px solid var(--border);
+  }
+  .more-item:active { background: var(--surface3); }
+  .more-item .more-icon { font-size: 22px; }
+  .more-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5); z-index: 185;
+  }
+  .more-overlay.open { display: block; }
+  .more-handle {
+    width: 36px; height: 4px; background: var(--surface3);
+    border-radius: 2px; margin: 0 auto 14px;
+  }
+  .more-title {
+    font-size: 11px; font-weight: 700; color: var(--text3);
+    text-transform: uppercase; letter-spacing: 0.1em;
+    margin-bottom: 10px;
+  }
+
+  /* Mobile header */
+  .mobile-header {
+    display: flex !important;
+    align-items: center; justify-content: space-between;
+    padding: 10px 14px 8px;
+    margin: -12px -14px 12px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .mobile-header-logo {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--display); font-size: 16px; font-weight: 700;
+    color: var(--text);
+  }
+  .mobile-header-logo .logo-icon {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 10px rgba(34,211,200,0.3);
+  }
+  .mobile-header-logo .logo-icon svg { width: 16px; height: 16px; }
+  .mobile-header-right { display: flex; align-items: center; gap: 8px; }
+  .mobile-header-date { font-size: 11px; color: var(--text3); font-weight: 500; }
+
+  /* Better grid on mobile */
   .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
   .form-row { grid-template-columns: 1fr; }
+  .form-row-3 { grid-template-columns: 1fr; }
+  .stat-grid-2x2 { grid-template-columns: 1fr 1fr !important; }
+
+  /* Compact page header */
+  .page-header { margin-bottom: 14px; }
+  .page-title { font-size: 20px !important; }
+  .page-sub { font-size: 12px !important; }
+
+  /* Cards tighter */
+  .card { padding: 14px 16px; border-radius: var(--r2); }
+  .stat-card { padding: 14px 16px; }
+  .stat-value { font-size: 26px !important; }
+
+  /* Chat full height on mobile */
+  .chat-container { height: calc(100vh - 190px); max-height: none; }
+  .chat-messages { padding: 14px; gap: 10px; }
+  .msg { max-width: 90%; }
+  .msg-bubble { font-size: 13px; padding: 10px 13px; }
+  .quick-chips { gap: 5px; margin-bottom: 8px; }
+  .chip { font-size: 11px; padding: 4px 10px; }
+
+  /* Tables scroll on mobile */
+  table { font-size: 12px; }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Med items */
+  .med-item { padding: 12px 14px; gap: 12px; }
+
+  /* Toast at top on mobile */
+  #toast { bottom: auto !important; top: 14px !important; left: 14px !important; right: 14px !important; transform: none !important; }
+
+  /* Hide status bar text on mobile (bottom nav replaces) */
+  .sidebar-footer { display: none; }
 }
+
+/* Tablet */
+@media (min-width: 769px) {
+  .bottom-nav { display: none; }
+  .mobile-header { display: none !important; }
+  .more-drawer, .more-overlay { display: none !important; }
+}
+
 </style>
 </head>
 <body>
@@ -422,16 +573,124 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
   <div class="main" id="mainContent"></div>
 </div>
 
+<!-- ── Mobile Bottom Navigation ─────────────────────────────────────── -->
+<nav class="bottom-nav" id="bottomNav">
+  <button class="bnav-item active" data-tab="chat" onclick="switchTab('chat');setActiveNav(this)">
+    <span class="bnav-icon">💬</span>
+    <span>Chat</span>
+  </button>
+  <button class="bnav-item" data-tab="vitals" onclick="switchTab('vitals');setActiveNav(this)">
+    <span class="bnav-icon">❤️</span>
+    <span>Vitals</span>
+    <span class="bnav-badge hidden" id="mobileVitalsBadge"></span>
+  </button>
+  <button class="bnav-item" data-tab="medications" onclick="switchTab('medications');setActiveNav(this)">
+    <span class="bnav-icon">💊</span>
+    <span>Meds</span>
+    <span class="bnav-badge hidden" id="mobileMedBadge"></span>
+  </button>
+  <button class="bnav-item" data-tab="appointments" onclick="switchTab('appointments');setActiveNav(this)">
+    <span class="bnav-icon">📅</span>
+    <span>Appts</span>
+    <span class="bnav-badge hidden" id="mobileApptBadge"></span>
+  </button>
+  <button class="bnav-item" onclick="toggleMoreDrawer()">
+    <span class="bnav-icon">☰</span>
+    <span>More</span>
+  </button>
+</nav>
+
+<!-- More drawer overlay -->
+<div class="more-overlay" id="moreOverlay" onclick="closeMoreDrawer()"></div>
+
+<!-- More drawer -->
+<div class="more-drawer" id="moreDrawer">
+  <div class="more-handle"></div>
+  <div class="more-title">More Sections</div>
+  <div class="more-drawer-grid">
+    <div class="more-item" onclick="switchTab('records');closeMoreDrawer();syncNavToTab('records')">
+      <span class="more-icon">📋</span><span>Records</span>
+    </div>
+    <div class="more-item" onclick="switchTab('diet');closeMoreDrawer();syncNavToTab('diet')">
+      <span class="more-icon">🥗</span><span>Diet</span>
+    </div>
+    <div class="more-item" onclick="switchTab('cycle');closeMoreDrawer();syncNavToTab('cycle')">
+      <span class="more-icon">🌸</span><span>Cycle</span>
+    </div>
+    <div class="more-item" onclick="switchTab('doctors');closeMoreDrawer();syncNavToTab('doctors')">
+      <span class="more-icon">🩺</span><span>Doctors</span>
+    </div>
+    <div class="more-item" onclick="switchTab('emergency');closeMoreDrawer();syncNavToTab('emergency')">
+      <span class="more-icon">🆘</span><span>Emergency</span>
+    </div>
+    <div class="more-item" onclick="switchTab('notifications');closeMoreDrawer();syncNavToTab('notifications')">
+      <span class="more-icon">🔔</span><span>Reminders</span>
+    </div>
+    <div class="more-item" onclick="switchTab('profile');closeMoreDrawer();syncNavToTab('profile')">
+      <span class="more-icon">👤</span><span>Profile</span>
+    </div>
+    <div class="more-item" onclick="window.location='/logout'">
+      <span class="more-icon">⏻</span><span>Sign Out</span>
+    </div>
+  </div>
+</div>
+
 <script>
 
 const today = new Date().toISOString().split('T')[0];
 document.getElementById('sidebarDate').textContent = new Date().toLocaleDateString('en-IN', {day:'numeric',month:'short'});
+
+// ── Mobile helpers ────────────────────────────────────────────────────
+function injectMobileHeader(title, subtitle, actions='') {
+  const isMobile = window.innerWidth <= 768;
+  if (!isMobile) return;
+  const existing = document.getElementById('mobilePageHeader');
+  if (existing) existing.remove();
+  const main = document.getElementById('mainContent');
+  const hdr = document.createElement('div');
+  hdr.id = 'mobilePageHeader';
+  hdr.className = 'mobile-header';
+  hdr.innerHTML = `
+    <div class="mobile-header-logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--bg)" stroke-width="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      </div>
+      <span>HealthMate</span>
+    </div>
+    <div class="mobile-header-right">
+      ${actions}
+      <span class="mobile-header-date">${new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</span>
+    </div>`;
+  main.insertBefore(hdr, main.firstChild);
+}
+
+function setActiveNav(el) {
+  document.querySelectorAll('.bnav-item').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+}
+
+function syncNavToTab(tab) {
+  const btn = document.querySelector(`.bnav-item[data-tab="${tab}"]`);
+  setActiveNav(btn);
+}
+
+function toggleMoreDrawer() {
+  document.getElementById('moreDrawer').classList.toggle('open');
+  document.getElementById('moreOverlay').classList.toggle('open');
+}
+
+function closeMoreDrawer() {
+  document.getElementById('moreDrawer').classList.remove('open');
+  document.getElementById('moreOverlay').classList.remove('open');
+}
 
 let vitalsChart = null;
 
 // ─── Tab Router ─────────────────────────────────────────────────────
 function switchTab(tab) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.tab === tab));
+  // Sync bottom nav active state
+  document.querySelectorAll('.bnav-item[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   const main = document.getElementById('mainContent');
   main.innerHTML = '';
   if (tab === 'chat') renderChat();
