@@ -88,54 +88,107 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 3px; }
 
 /* ═══════════════════════════════════════════
-   LAYOUT — narrow icon sidebar (Image 4 ref)
+   LAYOUT
 ═══════════════════════════════════════════ */
 .shell { display: flex; min-height: 100vh; }
 
+/* ── Desktop: icon-rail sidebar ── */
 .sidebar {
   width: 72px; background: var(--sidebar-bg);
   display: flex; flex-direction: column; align-items: center;
   padding: 18px 0; position: fixed; top: 0; left: 0;
-  height: 100vh; z-index: 100; border-right: none;
+  height: 100vh; z-index: 300;
+  transition: width 0.28s cubic-bezier(0.4,0,0.2,1);
+  overflow: hidden;
+}
+.sidebar.open { width: 240px; align-items: flex-start; }
+
+.main {
+  margin-left: 72px; flex: 1; padding: 28px 32px;
+  min-height: 100vh; background: var(--bg);
+  transition: margin-left 0.28s cubic-bezier(0.4,0,0.2,1);
 }
 
-.main { margin-left: 72px; flex: 1; padding: 28px 32px; min-height: 100vh; background: var(--bg); }
+/* Sidebar dim overlay for desktop */
+.sidebar-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.2); z-index: 299;
+}
+.sidebar-overlay.open { display: block; }
 
-/* Sidebar logo */
+/* ── Sidebar header ── */
 .sidebar-header {
   padding: 0 0 18px; width: 100%;
   display: flex; flex-direction: column; align-items: center;
   border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 10px;
 }
-.logo-row { display: flex; align-items: center; justify-content: center; }
+.sidebar.open .sidebar-header { align-items: flex-start; padding-left: 14px; }
+.logo-row { display: flex; align-items: center; gap: 10px; cursor: pointer; }
 .logo-icon {
-  width: 42px; height: 42px; border-radius: 13px;
-  background: var(--accent);
-  display: flex; align-items: center; justify-content: center;
+  width: 42px; height: 42px; min-width: 42px; border-radius: 13px;
+  background: var(--accent); display: flex; align-items: center; justify-content: center;
   box-shadow: 0 4px 16px rgba(232,255,71,0.45);
 }
 .logo-icon svg { width: 20px; height: 20px; }
-.logo-title { display: none; }
-.logo-sub   { display: none; }
+.logo-title {
+  font-family: var(--display); font-size: 17px; font-weight: 800; color: #fff;
+  white-space: nowrap; opacity: 0; max-width: 0; overflow: hidden;
+  transition: opacity 0.2s 0.08s, max-width 0.2s;
+}
+.sidebar.open .logo-title { opacity: 1; max-width: 160px; }
+.logo-sub { display: none; }
 
-/* Nav sections */
+/* ── Nav sections ── */
 .nav-section { padding: 4px 10px; width: 100%; }
-.nav-label   { display: none; }
+.nav-label {
+  font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.28);
+  letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 8px 14px 4px; white-space: nowrap;
+  opacity: 0; max-height: 0; overflow: hidden;
+  transition: opacity 0.15s, max-height 0.2s;
+}
+.sidebar.open .nav-label { opacity: 1; max-height: 28px; }
 
 .nav-item {
   display: flex; align-items: center; justify-content: center;
   width: 48px; height: 48px; border-radius: var(--rpill);
   cursor: pointer; font-size: 20px; color: var(--sidebar-icon);
   transition: all 0.18s; margin: 2px auto; position: relative;
+  overflow: hidden; white-space: nowrap;
 }
-.nav-item span:not(.nav-icon):not(.nav-badge) { display: none; }
-.nav-item:hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.75); }
+.sidebar.open .nav-item {
+  width: calc(100% - 20px); margin: 2px 10px;
+  justify-content: flex-start; padding-left: 12px; gap: 12px;
+  border-radius: 12px;
+}
+.nav-item:hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); }
 .nav-item.active { background: var(--sidebar-active); color: var(--sidebar-icon-active); }
 .nav-item.active::before { display: none; }
-.nav-icon { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; background: transparent; border-radius: 0; }
-.nav-item.active .nav-icon { background: transparent; }
+.nav-icon {
+  width: 28px; height: 28px; min-width: 28px;
+  display: flex; align-items: center; justify-content: center; font-size: 17px;
+}
+/* Text label in nav item — hidden until sidebar is open */
+.nav-item-label {
+  font-size: 13px; font-weight: 600; color: inherit; font-family: var(--font);
+  opacity: 0; max-width: 0; overflow: hidden;
+  transition: opacity 0.15s 0.06s, max-width 0.15s;
+  white-space: nowrap;
+}
+.sidebar.open .nav-item-label { opacity: 1; max-width: 160px; }
 
-/* Tooltip label on hover */
+/* Badge repositioning when open */
+.nav-badge {
+  position: absolute; top: 8px; right: 6px;
+  background: var(--danger); color: white;
+  font-size: 9px; font-weight: 700; min-width: 16px; height: 16px;
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--sidebar-bg); padding: 0 3px;
+}
+.nav-badge.hidden { display: none; }
+.sidebar.open .nav-badge { position: static; margin-left: auto; margin-right: 2px; border-color: transparent; }
+
+/* Tooltip — collapsed state only */
 .nav-item[data-tooltip]::after {
   content: attr(data-tooltip);
   position: absolute; left: calc(100% + 14px); top: 50%;
@@ -144,46 +197,38 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
   font-size: 12px; font-weight: 600; font-family: var(--font);
   padding: 5px 12px; border-radius: 8px; white-space: nowrap;
   opacity: 0; pointer-events: none;
-  transition: opacity 0.15s, transform 0.15s;
-  box-shadow: var(--shadow);
+  transition: opacity 0.15s, transform 0.15s; box-shadow: var(--shadow); z-index: 999;
 }
-.nav-item[data-tooltip]:hover::after {
-  opacity: 1; transform: translateY(-50%) translateX(0);
-}
+.nav-item[data-tooltip]:hover::after { opacity: 1; transform: translateY(-50%) translateX(0); }
+.sidebar.open .nav-item::after { display: none !important; }
 
-.nav-badge {
-  position: absolute; top: 6px; right: 4px;
-  background: var(--danger); color: white;
-  font-size: 9px; font-weight: 700; min-width: 16px; height: 16px;
-  border-radius: 8px; display: flex; align-items: center; justify-content: center;
-  border: 2px solid var(--sidebar-bg); padding: 0 3px;
-}
-.nav-badge.hidden { display: none; }
-
-/* Sidebar footer */
+/* ── Sidebar footer ── */
 .sidebar-footer {
   margin-top: auto; padding: 14px 0 0;
   border-top: 1px solid rgba(255,255,255,0.08);
   width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px;
 }
-.status-dot { display: flex; align-items: center; justify-content: center; }
-.dot-pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success); animation: pulse 2s infinite; }
+.sidebar.open .sidebar-footer { align-items: flex-start; padding-left: 18px; }
+.status-dot { display: flex; align-items: center; gap: 8px; }
+.dot-pulse { width: 7px; height: 7px; min-width: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success); animation: pulse 2s infinite; }
+.status-label {
+  font-size: 11px; color: rgba(255,255,255,0.35); white-space: nowrap;
+  opacity: 0; max-width: 0; overflow: hidden; transition: opacity 0.15s 0.1s, max-width 0.15s;
+}
+.sidebar.open .status-label { opacity: 1; max-width: 120px; }
 .sidebar-footer a {
   color: var(--sidebar-icon); font-size: 18px; text-decoration: none;
   width: 42px; height: 42px; border-radius: var(--rpill);
   display: flex; align-items: center; justify-content: center; transition: all 0.2s;
 }
 .sidebar-footer a:hover { background: rgba(255,71,87,0.2); color: var(--danger); }
-
-@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
-@keyframes heartbeat { 0%,100%{transform:scale(1)} 15%{transform:scale(1.18)} 30%{transform:scale(1)} 45%{transform:scale(1.1)} 60%{transform:scale(1)} }
-@keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-@keyframes countUp { from{opacity:0;transform:scale(0.8)} to{opacity:1;transform:scale(1)} }
-.heartbeat-anim { animation: heartbeat 1.4s ease infinite; display:inline-block; }
-.stat-card { animation: fadeIn 0.4s ease both; }
-.stat-card:nth-child(1){animation-delay:0.05s} .stat-card:nth-child(2){animation-delay:0.1s}
-.stat-card:nth-child(3){animation-delay:0.15s} .stat-card:nth-child(4){animation-delay:0.2s}
-.stat-value { animation: countUp 0.5s ease both; }
+.logout-label {
+  font-size: 13px; font-weight: 600; color: inherit;
+  opacity: 0; max-width: 0; overflow: hidden; white-space: nowrap;
+  transition: opacity 0.15s 0.08s, max-width 0.15s;
+}
+.sidebar.open .logout-label { opacity: 1; max-width: 100px; }
+.sidebar.open .sidebar-footer a { width: auto; padding: 8px 10px; border-radius: 10px; gap: 10px; height: auto; }
 
 /* ═══════════════════════════════════════════
    PAGE HEADER
@@ -395,67 +440,173 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 .modal-title { font-size: 18px; font-weight: 800; color: var(--text); margin-bottom: 18px; }
 
 /* ═══════════════════════════════════════════
-   RESPONSIVE — mobile bottom nav
+   RESPONSIVE
 ═══════════════════════════════════════════ */
 @media (max-width: 1024px) { .grid-4 { grid-template-columns: repeat(2, 1fr); } }
 
+/* ── MOBILE ≤768px ── */
 @media (max-width: 768px) {
-  .sidebar { display: none !important; }
-  .main { margin-left: 0 !important; padding: 12px 14px 80px !important; }
-  .bottom-nav {
-    display: flex !important; position: fixed; bottom: 0; left: 0; right: 0;
-    height: var(--nav-h); background: var(--hero-bg); border-top: none;
-    z-index: 200; padding: 0 4px; padding-bottom: env(safe-area-inset-bottom);
-    align-items: stretch;
+  .sidebar         { display: none !important; }
+  .sidebar-overlay { display: none !important; }
+  .main            { margin-left: 0 !important; padding: 0 0 72px !important; }
+
+  /* Mobile slide-in sidebar */
+  .mobile-sidebar {
+    position: fixed; top: 0; left: -290px; width: 290px; height: 100vh;
+    background: var(--sidebar-bg); z-index: 500;
+    display: flex; flex-direction: column;
+    transition: left 0.28s cubic-bezier(0.4,0,0.2,1);
+    overflow-y: auto; overflow-x: hidden;
+    padding-bottom: env(safe-area-inset-bottom);
   }
-  .bnav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; color: rgba(255,255,255,0.38); font-size: 10px; font-weight: 700; letter-spacing: 0.02em; transition: color 0.2s; padding: 6px 2px; position: relative; border: none; background: none; }
-  .bnav-item .bnav-icon { font-size: 20px; line-height: 1; transition: transform 0.2s; }
-  .bnav-item.active { color: var(--accent); }
-  .bnav-item.active .bnav-icon { transform: scale(1.15); }
-  .bnav-item.active::after { content: ''; position: absolute; top: 0; left: 25%; right: 25%; height: 2px; background: var(--accent); border-radius: 0 0 3px 3px; }
-  .bnav-badge { position: absolute; top: 6px; right: calc(50% - 20px); background: var(--danger); color: white; font-size: 9px; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 2px solid var(--hero-bg); padding: 0 3px; }
-  .more-drawer { display: none; position: fixed; bottom: var(--nav-h); left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); z-index: 190; padding: 12px 16px 16px; border-radius: 20px 20px 0 0; box-shadow: 0 -8px 32px rgba(0,0,0,0.1); }
-  @keyframes slideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-  .more-drawer.open { display: block; animation: slideUp 0.2s ease; }
-  .more-drawer-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-  .more-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 6px; border-radius: var(--r2); background: var(--surface2); cursor: pointer; font-size: 11px; font-weight: 600; color: var(--text2); transition: all 0.15s; border: 1px solid var(--border); }
-  .more-item:active { background: var(--surface3); }
-  .more-item .more-icon { font-size: 22px; }
-  .more-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 185; }
-  .more-overlay.open { display: block; }
-  .more-handle { width: 36px; height: 4px; background: var(--surface3); border-radius: 2px; margin: 0 auto 14px; }
-  .more-title  { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; }
-  .mobile-header { display: flex !important; align-items: center; justify-content: space-between; padding: 10px 14px 8px; margin: -12px -14px 12px; background: var(--hero-bg); border-bottom: none; position: sticky; top: 0; z-index: 100; }
+  .mobile-sidebar.open { left: 0; box-shadow: 8px 0 32px rgba(0,0,0,0.35); }
+
+  .msidebar-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: max(20px, env(safe-area-inset-top)) 16px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 6px;
+    flex-shrink: 0;
+  }
+  .msidebar-logo {
+    width: 40px; height: 40px; min-width: 40px; border-radius: 12px;
+    background: var(--accent); display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 14px rgba(232,255,71,0.4);
+  }
+  .msidebar-logo svg { width: 20px; height: 20px; }
+  .msidebar-title { font-family: var(--display); font-size: 18px; font-weight: 800; color: #fff; }
+  .msidebar-close {
+    margin-left: auto; width: 36px; height: 36px; min-width: 36px; border-radius: 50%;
+    background: rgba(255,255,255,0.08); border: none; color: rgba(255,255,255,0.6);
+    font-size: 18px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .msidebar-close:hover { background: rgba(255,255,255,0.15); color: #fff; }
+
+  .msidebar-section { padding: 2px 12px; }
+  .msidebar-label {
+    font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.28);
+    letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 10px 8px 4px; display: block;
+  }
+  .msidebar-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 13px 14px; border-radius: 12px;
+    cursor: pointer; color: rgba(255,255,255,0.65);
+    font-size: 14px; font-weight: 600; font-family: var(--font);
+    transition: all 0.15s; margin-bottom: 2px; position: relative;
+  }
+  .msidebar-item:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.9); }
+  .msidebar-item.active { background: #fff; color: #1A1A1A; border-radius: 12px; }
+  .msidebar-item .ms-icon { font-size: 18px; width: 22px; text-align: center; flex-shrink: 0; }
+  .msidebar-badge {
+    margin-left: auto; background: var(--danger); color: white;
+    font-size: 9px; font-weight: 700; min-width: 18px; height: 18px;
+    border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px;
+  }
+
+  .msidebar-footer {
+    margin-top: auto; padding: 16px 14px;
+    border-top: 1px solid rgba(255,255,255,0.08); flex-shrink: 0;
+  }
+  .msidebar-status {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+    font-size: 12px; color: rgba(255,255,255,0.38);
+  }
+  .msidebar-logout {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; border-radius: 12px;
+    background: rgba(255,71,87,0.1); color: var(--danger);
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    text-decoration: none; transition: all 0.15s;
+    border: 1px solid rgba(255,71,87,0.2);
+  }
+  .msidebar-logout:hover { background: rgba(255,71,87,0.2); }
+
+  .mobile-sidebar-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5); z-index: 499; backdrop-filter: blur(2px);
+  }
+  .mobile-sidebar-overlay.open { display: block; }
+
+  /* Mobile top header */
+  .mobile-header {
+    display: flex !important; align-items: center; justify-content: space-between;
+    padding: max(10px, env(safe-area-inset-top)) 14px 10px;
+    background: var(--hero-bg); position: sticky; top: 0; z-index: 100;
+  }
+  .mobile-header-left { display: flex; align-items: center; gap: 10px; }
+  .mobile-hamburger {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: rgba(255,255,255,0.1); border: none;
+    color: rgba(255,255,255,0.8); font-size: 17px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
   .mobile-header-logo { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 16px; font-weight: 800; color: #fff; }
-  .mobile-header-logo .logo-icon { width: 30px; height: 30px; border-radius: 9px; background: var(--accent); display: flex; align-items: center; justify-content: center; }
+  .mobile-header-logo .logo-icon { width: 30px; height: 30px; border-radius: 9px; background: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .mobile-header-logo .logo-icon svg { width: 16px; height: 16px; }
   .mobile-header-right { display: flex; align-items: center; gap: 8px; }
-  .mobile-header-date  { font-size: 11px; color: rgba(255,255,255,0.5); font-weight: 600; }
+  .mobile-header-date { font-size: 11px; color: rgba(255,255,255,0.45); font-weight: 600; }
+
+  #mainContent { padding: 14px 14px 0 !important; }
+
+  /* Bottom nav */
+  .bottom-nav {
+    display: flex !important; position: fixed; bottom: 0; left: 0; right: 0;
+    height: var(--nav-h); background: var(--hero-bg); z-index: 200;
+    padding: 0 6px; padding-bottom: env(safe-area-inset-bottom); align-items: stretch;
+  }
+  .bnav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 3px; cursor: pointer;
+    color: rgba(255,255,255,0.38); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.02em; transition: color 0.18s; padding: 6px 2px;
+    position: relative; border: none; background: none;
+  }
+  .bnav-item .bnav-icon { font-size: 21px; line-height: 1; transition: transform 0.18s; }
+  .bnav-item.active { color: var(--accent); }
+  .bnav-item.active .bnav-icon { transform: scale(1.12); }
+  .bnav-item.active::before { content: ''; position: absolute; top: 0; left: 22%; right: 22%; height: 2px; background: var(--accent); border-radius: 0 0 4px 4px; }
+  .bnav-badge { position: absolute; top: 6px; right: calc(50% - 22px); background: var(--danger); color: white; font-size: 9px; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 2px solid var(--hero-bg); padding: 0 3px; }
+
+  /* More drawer */
+  .more-drawer { display: none; position: fixed; bottom: var(--nav-h); left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); z-index: 190; padding: 12px 16px 20px; border-radius: 20px 20px 0 0; box-shadow: 0 -12px 40px rgba(0,0,0,0.1); }
+  @keyframes slideUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+  .more-drawer.open { display: block; animation: slideUp 0.22s ease; }
+  .more-drawer-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .more-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 6px; border-radius: var(--r2); background: var(--surface2); cursor: pointer; font-size: 11px; font-weight: 600; color: var(--text2); transition: all 0.15s; border: 1px solid var(--border); }
+  .more-item:active { background: var(--surface3); transform: scale(0.97); }
+  .more-item .more-icon { font-size: 22px; }
+  .more-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 185; }
+  .more-overlay.open { display: block; }
+  .more-handle { width: 40px; height: 4px; background: var(--border2); border-radius: 2px; margin: 0 auto 14px; }
+  .more-title { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; }
+
+  /* Layout tweaks */
   .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
   .form-row { grid-template-columns: 1fr; } .form-row-3 { grid-template-columns: 1fr; }
   .stat-grid-2x2 { grid-template-columns: 1fr 1fr !important; }
   .page-header { margin-bottom: 14px; }
-  .page-title  { font-size: 20px !important; }
-  .page-sub    { font-size: 12px !important; }
-  .card        { padding: 14px 16px; }
-  .stat-card   { padding: 14px 16px; }
-  .stat-value  { font-size: 26px !important; }
-  .chat-container  { height: calc(100vh - 190px); max-height: none; }
-  .chat-messages   { padding: 14px; gap: 10px; }
-  .msg             { max-width: 90%; }
-  .msg-bubble      { font-size: 13px; padding: 10px 13px; }
-  .quick-chips     { gap: 5px; margin-bottom: 8px; }
-  .chip            { font-size: 11px; padding: 4px 10px; }
-  table            { font-size: 12px; }
-  .table-wrap      { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .med-item        { padding: 12px 14px; gap: 12px; }
-  #toast           { bottom: auto !important; top: 14px !important; left: 14px !important; right: 14px !important; transform: none !important; }
-  .sidebar-footer  { display: none; }
+  .page-title { font-size: 20px !important; } .page-sub { font-size: 12px !important; }
+  .card { padding: 14px 16px; } .stat-card { padding: 14px 16px; }
+  .stat-value { font-size: 26px !important; }
+  .chat-container { height: calc(100dvh - 195px); max-height: none; }
+  .chat-messages { padding: 14px; gap: 10px; }
+  .msg { max-width: 92%; } .msg-bubble { font-size: 13px; padding: 10px 13px; }
+  .quick-chips { gap: 5px; margin-bottom: 8px; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; }
+  .chip { font-size: 11px; padding: 5px 12px; flex-shrink: 0; }
+  table { font-size: 12px; } .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .med-item { padding: 12px 14px; gap: 12px; }
+  #toast { bottom: auto !important; top: 14px !important; left: 14px !important; right: 14px !important; transform: none !important; }
 }
+
+/* ── DESKTOP >768px ── */
 @media (min-width: 769px) {
-  .bottom-nav { display: none; }
-  .mobile-header { display: none !important; }
-  .more-drawer, .more-overlay { display: none !important; }
+  .bottom-nav              { display: none !important; }
+  .mobile-header           { display: none !important; }
+  .more-drawer             { display: none !important; }
+  .more-overlay            { display: none !important; }
+  .mobile-sidebar          { display: none !important; }
+  .mobile-sidebar-overlay  { display: none !important; }
 }
 </style>
 </head>
@@ -468,65 +619,154 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 </div>
 
 <div class="shell">
-  <!-- Sidebar -->
-  <div class="sidebar">
+  <!-- Desktop Sidebar -->
+  <div class="sidebar" id="desktopSidebar">
     <div class="sidebar-header">
-      <div class="logo-row">
+      <div class="logo-row" onclick="toggleDesktopSidebar()" title="Toggle menu">
         <div class="logo-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" stroke-width="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
         </div>
+        <span class="logo-title">HealthMate</span>
       </div>
     </div>
 
     <div class="nav-section">
+      <span class="nav-label">Main</span>
       <div class="nav-item active" data-tab="chat" data-tooltip="AI Chat" onclick="switchTab('chat')">
-        <div class="nav-icon">💬</div>
+        <div class="nav-icon">💬</div><span class="nav-item-label">AI Chat</span>
       </div>
       <div class="nav-item" data-tab="vitals" data-tooltip="Vitals" onclick="switchTab('vitals')">
-        <div class="nav-icon">❤️</div>
+        <div class="nav-icon">❤️</div><span class="nav-item-label">Vitals</span>
       </div>
       <div class="nav-item" data-tab="medications" data-tooltip="Medications" onclick="switchTab('medications')">
-        <div class="nav-icon">💊</div>
+        <div class="nav-icon">💊</div><span class="nav-item-label">Medications</span>
         <span class="nav-badge hidden" id="medBadge">0</span>
       </div>
+    </div>
+
+    <div class="nav-section">
+      <span class="nav-label">Health</span>
       <div class="nav-item" data-tab="records" data-tooltip="Records" onclick="switchTab('records')">
-        <div class="nav-icon">📋</div>
+        <div class="nav-icon">📋</div><span class="nav-item-label">Records</span>
       </div>
       <div class="nav-item" data-tab="diet" data-tooltip="Diet" onclick="switchTab('diet')">
-        <div class="nav-icon">🥗</div>
+        <div class="nav-icon">🥗</div><span class="nav-item-label">Diet</span>
       </div>
       <div class="nav-item" data-tab="cycle" data-tooltip="Cycle" onclick="switchTab('cycle')">
-        <div class="nav-icon">🌸</div>
+        <div class="nav-icon">🌸</div><span class="nav-item-label">Cycle</span>
       </div>
       <div class="nav-item" data-tab="appointments" data-tooltip="Appointments" onclick="switchTab('appointments')">
-        <div class="nav-icon">📅</div>
+        <div class="nav-icon">📅</div><span class="nav-item-label">Appointments</span>
         <span class="nav-badge hidden" id="apptBadge">0</span>
       </div>
+    </div>
+
+    <div class="nav-section">
+      <span class="nav-label">Care</span>
       <div class="nav-item" data-tab="doctors" data-tooltip="My Doctors" onclick="switchTab('doctors')">
-        <div class="nav-icon">🩺</div>
+        <div class="nav-icon">🩺</div><span class="nav-item-label">My Doctors</span>
       </div>
       <div class="nav-item" data-tab="emergency" data-tooltip="Emergency" onclick="switchTab('emergency')">
-        <div class="nav-icon">🆘</div>
+        <div class="nav-icon">🆘</div><span class="nav-item-label">Emergency</span>
       </div>
       <div class="nav-item" data-tab="notifications" data-tooltip="Reminders" onclick="switchTab('notifications')">
-        <div class="nav-icon">🔔</div>
+        <div class="nav-icon">🔔</div><span class="nav-item-label">Reminders</span>
         <span class="nav-badge hidden" id="notifBadge">0</span>
       </div>
       <div class="nav-item" data-tab="profile" data-tooltip="My Profile" onclick="switchTab('profile')">
-        <div class="nav-icon">👤</div>
+        <div class="nav-icon">👤</div><span class="nav-item-label">My Profile</span>
       </div>
     </div>
 
     <div class="sidebar-footer">
       <div class="status-dot">
         <div class="dot-pulse"></div>
+        <span class="status-label" id="apiStatusDot">Connected</span>
       </div>
-      <a href="/logout" title="Sign out">⏻</a>
+      <a href="/logout" title="Sign out">
+        <span>⏻</span>
+        <span class="logout-label">Sign out</span>
+      </a>
     </div>
   </div>
 
+  <!-- Desktop sidebar dim overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeDesktopSidebar()"></div>
+
   <!-- Main content -->
   <div class="main" id="mainContent"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     MOBILE SLIDE-IN SIDEBAR
+═══════════════════════════════════════════ -->
+<div class="mobile-sidebar-overlay" id="mobileSidebarOverlay" onclick="closeMobileSidebar()"></div>
+
+<div class="mobile-sidebar" id="mobileSidebar">
+  <div class="msidebar-header">
+    <div class="msidebar-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" stroke-width="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+    </div>
+    <span class="msidebar-title">HealthMate</span>
+    <button class="msidebar-close" onclick="closeMobileSidebar()">✕</button>
+  </div>
+
+  <div class="msidebar-section">
+    <span class="msidebar-label">Main</span>
+    <div class="msidebar-item active" data-tab="chat" onclick="mobileNavTo('chat')">
+      <span class="ms-icon">💬</span> AI Chat
+    </div>
+    <div class="msidebar-item" data-tab="vitals" onclick="mobileNavTo('vitals')">
+      <span class="ms-icon">❤️</span> Vitals
+    </div>
+    <div class="msidebar-item" data-tab="medications" onclick="mobileNavTo('medications')">
+      <span class="ms-icon">💊</span> Medications
+      <span class="msidebar-badge hidden" id="msMedBadge">0</span>
+    </div>
+  </div>
+
+  <div class="msidebar-section">
+    <span class="msidebar-label">Health</span>
+    <div class="msidebar-item" data-tab="records" onclick="mobileNavTo('records')">
+      <span class="ms-icon">📋</span> Records
+    </div>
+    <div class="msidebar-item" data-tab="diet" onclick="mobileNavTo('diet')">
+      <span class="ms-icon">🥗</span> Diet
+    </div>
+    <div class="msidebar-item" data-tab="cycle" onclick="mobileNavTo('cycle')">
+      <span class="ms-icon">🌸</span> Cycle
+    </div>
+    <div class="msidebar-item" data-tab="appointments" onclick="mobileNavTo('appointments')">
+      <span class="ms-icon">📅</span> Appointments
+      <span class="msidebar-badge hidden" id="msApptBadge">0</span>
+    </div>
+  </div>
+
+  <div class="msidebar-section">
+    <span class="msidebar-label">Care</span>
+    <div class="msidebar-item" data-tab="doctors" onclick="mobileNavTo('doctors')">
+      <span class="ms-icon">🩺</span> My Doctors
+    </div>
+    <div class="msidebar-item" data-tab="emergency" onclick="mobileNavTo('emergency')">
+      <span class="ms-icon">🆘</span> Emergency
+    </div>
+    <div class="msidebar-item" data-tab="notifications" onclick="mobileNavTo('notifications')">
+      <span class="ms-icon">🔔</span> Reminders
+      <span class="msidebar-badge hidden" id="msNotifBadge">0</span>
+    </div>
+    <div class="msidebar-item" data-tab="profile" onclick="mobileNavTo('profile')">
+      <span class="ms-icon">👤</span> My Profile
+    </div>
+  </div>
+
+  <div class="msidebar-footer">
+    <div class="msidebar-status">
+      <div class="dot-pulse"></div> Connected
+    </div>
+    <a href="/logout" class="msidebar-logout">
+      <span>⏻</span> Sign Out
+    </a>
+  </div>
 </div>
 
 <!-- ── Mobile Bottom Navigation ─────────────────────────────────────── -->
@@ -609,17 +849,57 @@ function injectMobileHeader(title, subtitle, actions='') {
   hdr.id = 'mobilePageHeader';
   hdr.className = 'mobile-header';
   hdr.innerHTML = `
-    <div class="mobile-header-logo">
-      <div class="logo-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" stroke-width="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+    <div class="mobile-header-left">
+      <button class="mobile-hamburger" onclick="openMobileSidebar()" aria-label="Open menu">☰</button>
+      <div class="mobile-header-logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" stroke-width="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <span>HealthMate</span>
       </div>
-      <span>HealthMate</span>
     </div>
     <div class="mobile-header-right">
       ${actions}
       <span class="mobile-header-date">${new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</span>
     </div>`;
   main.insertBefore(hdr, main.firstChild);
+}
+
+// ── Desktop sidebar toggle ───────────────────────────────────────────
+function toggleDesktopSidebar() {
+  const sb = document.getElementById('desktopSidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  if (!sb) return;
+  const isOpen = sb.classList.toggle('open');
+  if (overlay) overlay.classList.toggle('open', isOpen);
+}
+function closeDesktopSidebar() {
+  const sb = document.getElementById('desktopSidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  if (sb) sb.classList.remove('open');
+  if (overlay) overlay.classList.remove('open');
+}
+
+// ── Mobile sidebar ────────────────────────────────────────────────────
+function openMobileSidebar() {
+  document.getElementById('mobileSidebar').classList.add('open');
+  document.getElementById('mobileSidebarOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeMobileSidebar() {
+  document.getElementById('mobileSidebar').classList.remove('open');
+  document.getElementById('mobileSidebarOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function mobileNavTo(tab) {
+  closeMobileSidebar();
+  switchTab(tab);
+  // Sync bottom nav
+  document.querySelectorAll('.bnav-item[data-tab]').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === tab));
+  // Sync mobile sidebar active state
+  document.querySelectorAll('.msidebar-item').forEach(i =>
+    i.classList.toggle('active', i.dataset.tab === tab));
 }
 
 function setActiveNav(el) {
@@ -646,9 +926,12 @@ let vitalsChart = null;
 
 // ─── Tab Router ─────────────────────────────────────────────────────
 function switchTab(tab) {
+  // Sync desktop sidebar
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.tab === tab));
-  // Sync bottom nav active state
+  // Sync bottom nav
   document.querySelectorAll('.bnav-item[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  // Sync mobile sidebar
+  document.querySelectorAll('.msidebar-item[data-tab]').forEach(i => i.classList.toggle('active', i.dataset.tab === tab));
   const main = document.getElementById('mainContent');
   main.innerHTML = '';
   if (tab === 'chat') renderChat();
