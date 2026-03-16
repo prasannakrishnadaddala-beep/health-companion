@@ -1,4 +1,4 @@
-import os, json, datetime, hashlib, secrets, traceback
+import os, json, datetime, hashlib, secrets, traceback, random, time
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 from werkzeug.utils import secure_filename
 
@@ -156,6 +156,81 @@ def init_db():
 def hash_pw(p):
     return hashlib.sha256(p.encode()).hexdigest()
 
+# ── OTP Store ─────────────────────────────────────────────────────────────────
+# In-memory: {phone: {otp, expires_at, attempts, send_count, send_window}}
+_otp_store = {}
+OTP_EXPIRY   = 300   # 5 minutes
+OTP_MAX_ATT  = 5     # max wrong attempts before OTP is invalidated
+
+def generate_otp():
+    return str(random.randint(100000, 999999))
+
+def send_sms_otp(phone, otp):
+    """
+    Send OTP via SMS. Replace the stub below with a real provider.
+
+    ── MSG91 (recommended for India) ──────────────────────────────────
+    authkey     = os.environ.get("MSG91_AUTHKEY", "")
+    template_id = os.environ.get("MSG91_TEMPLATE_ID", "")
+    if authkey and template_id:
+        import urllib.request
+        body = json.dumps({"template_id": template_id, "mobile": phone.lstrip('+'),
+                           "authkey": authkey, "otp": otp}).encode()
+        req  = urllib.request.Request("https://api.msg91.com/api/v5/otp",
+                                       data=body, headers={"Content-Type":"application/json"})
+        urllib.request.urlopen(req, timeout=8)
+        return True
+
+    ── Fast2SMS (easy, India) ──────────────────────────────────────────
+    api_key = os.environ.get("FAST2SMS_KEY", "")
+    if api_key:
+        import urllib.request, urllib.parse
+        params = urllib.parse.urlencode({
+            "authorization": api_key,
+            "message": f"Your HealthMate OTP is {otp}. Valid 5 mins. Do not share.",
+            "language": "english", "route": "q",
+            "numbers": phone.lstrip('+91')})
+        urllib.request.urlopen(f"https://www.fast2sms.com/dev/bulkV2?{params}", timeout=8)
+        return True
+    """
+    # Dev fallback — prints to Railway/server logs
+    print(f"[HealthMate OTP]  phone={phone}  otp={otp}  (set MSG91_AUTHKEY or FAST2SMS_KEY for production)")
+    return True
+
+def get_or_create_user_by_phone(phone):
+    """Auto-register a user keyed by phone number (e.g. ph_919876543210)."""
+    username = "ph_" + phone.lstrip("+").replace(" ", "")
+    conn = get_db()
+    if USE_POSTGRES and PSYCOPG2_OK:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT username FROM users WHERE username=%s", (username,))
+        exists = cur.fetchone(); cur.close()
+    else:
+        row   = conn.execute("SELECT username FROM users WHERE username=?", (username,)).fetchone()
+        exists = dict(row) if row else None
+    if not exists:
+        pw_hash = hash_pw(secrets.token_hex(32))
+        ts      = datetime.datetime.now().isoformat()
+        if USE_POSTGRES and PSYCOPG2_OK:
+            cur = conn.cursor()
+            cur.execute("INSERT INTO users (username,password_hash,created_at) VALUES (%s,%s,%s)",
+                        (username, pw_hash, ts))
+            conn.commit(); cur.close()
+        else:
+            conn.execute("INSERT INTO users (username,password_hash,created_at) VALUES (?,?,?)",
+                         (username, pw_hash, ts))
+            conn.commit()
+        # seed empty profile
+        if USE_POSTGRES and PSYCOPG2_OK:
+            cur = conn.cursor()
+            cur.execute("INSERT INTO user_profile (username, updated_at) VALUES (%s,%s) ON CONFLICT DO NOTHING",
+                        (username, ts)); conn.commit(); cur.close()
+        else:
+            conn.execute("INSERT OR IGNORE INTO user_profile (username, updated_at) VALUES (?,?)",
+                         (username, ts)); conn.commit()
+    conn.close()
+    return username
+
 def generate_patient_id():
     """Generate a unique patient ID like HM-2024-A3F9K"""
     import random, string
@@ -290,16 +365,23 @@ def logout():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     """Public registration — anyone can create an account and get auto-logged in."""
-    # If already logged in, go to app
     if session.get("logged_in") and request.method == "GET":
-        # Show family management page for logged-in admin
         pass
     error = None; success = None
     if request.method == "POST":
-        u = request.form.get("username","").strip().lower().replace(" ","_")
-        p = request.form.get("password","")
-        full_name = request.form.get("full_name","").strip()
-        email = request.form.get("email","").strip()
+        u          = request.form.get("username","").strip().lower().replace(" ","_")
+        p          = request.form.get("password","")
+        full_name  = request.form.get("full_name","").strip()
+        email      = request.form.get("email","").strip()
+        mobile_full = request.form.get("mobile_full","").strip()
+        # Extra health fields
+        age         = request.form.get("age","").strip() or None
+        gender      = request.form.get("gender","").strip() or None
+        weight_kg   = request.form.get("weight_kg","").strip() or None
+        height_cm   = request.form.get("height_cm","").strip() or None
+        blood_group = request.form.get("blood_group","").strip() or None
+        med_conds   = request.form.get("medical_conditions","").strip() or None
+
         if not u or not p:
             error = "Username and password are required."
         elif len(u) < 3:
@@ -319,25 +401,35 @@ def register():
                                  (u, hash_pw(p), datetime.datetime.now().isoformat()))
                     conn.commit()
                 conn.close()
-                # Create profile
+                # Create profile with all fields
                 conn = get_db()
+                ts = datetime.datetime.now().isoformat()
                 if USE_POSTGRES and PSYCOPG2_OK:
                     cur = conn.cursor()
-                    cur.execute("""INSERT INTO user_profile (username,full_name,email,updated_at)
-                                   VALUES (%s,%s,%s,%s)
+                    cur.execute("""INSERT INTO user_profile
+                                   (username,full_name,email,age,gender,weight_kg,height_cm,blood_group,medical_conditions,updated_at)
+                                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                                    ON CONFLICT (username) DO UPDATE SET
-                                   full_name=EXCLUDED.full_name, email=EXCLUDED.email""",
-                                (u, full_name, email, datetime.datetime.now().isoformat()))
+                                   full_name=EXCLUDED.full_name, email=EXCLUDED.email,
+                                   age=EXCLUDED.age, gender=EXCLUDED.gender,
+                                   weight_kg=EXCLUDED.weight_kg, height_cm=EXCLUDED.height_cm,
+                                   blood_group=EXCLUDED.blood_group, medical_conditions=EXCLUDED.medical_conditions""",
+                                (u, full_name, email, age, gender, weight_kg, height_cm, blood_group, med_conds, ts))
                     conn.commit(); cur.close()
                 else:
-                    conn.execute("INSERT OR REPLACE INTO user_profile (username,full_name,email,updated_at) VALUES (?,?,?,?)",
-                                 (u, full_name, email, datetime.datetime.now().isoformat()))
+                    conn.execute("""INSERT OR REPLACE INTO user_profile
+                                    (username,full_name,email,age,gender,weight_kg,height_cm,blood_group,medical_conditions,updated_at)
+                                    VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                                 (u, full_name, email, age, gender, weight_kg, height_cm, blood_group, med_conds, ts))
                     conn.commit()
                 conn.close()
-                # Auto-login after registration
-                session.permanent = True
+                # Link phone number (create phone-keyed user alias → map to this account)
+                if mobile_full and mobile_full.startswith("+91"):
+                    _otp_store[mobile_full + "__linked"] = u  # simple phone→username map
+                # Auto-login
+                session.permanent    = True
                 session["logged_in"] = True
-                session["username"] = u
+                session["username"]  = u
                 return redirect(url_for("index"))
             except Exception as e:
                 if "unique" in str(e).lower() or "duplicate" in str(e).lower():
@@ -346,6 +438,80 @@ def register():
                     error = f"Registration failed: {str(e)}"
     return render_template("register.html", error=error, success=success,
                            is_logged_in=session.get("logged_in", False))
+
+# ── OTP Auth Routes ───────────────────────────────────────────────────────────
+
+@app.route("/api/otp/send", methods=["POST"])
+def api_otp_send():
+    data  = request.get_json(force=True) or {}
+    phone = (data.get("phone") or "").strip().replace(" ", "")
+
+    # Validate: +91 followed by 10 digits
+    if not (phone.startswith("+91") and len(phone) == 13 and phone[3:].isdigit()):
+        return jsonify({"success": False, "error": "Enter a valid 10-digit Indian mobile number."}), 400
+
+    now    = time.time()
+    stored = _otp_store.get(phone, {})
+    # Rate-limit: max 3 sends per 10-minute window
+    if now - stored.get("send_window", 0) < 600 and stored.get("send_count", 0) >= 3:
+        wait = int(600 - (now - stored["send_window"]))
+        return jsonify({"success": False,
+                        "error": f"Too many requests. Try again in {wait//60}m {wait%60}s."}), 429
+
+    otp = generate_otp()
+    _otp_store[phone] = {
+        "otp":         otp,
+        "expires_at":  now + OTP_EXPIRY,
+        "attempts":    0,
+        "send_count":  stored.get("send_count", 0) + 1 if now - stored.get("send_window", 0) < 600 else 1,
+        "send_window": stored.get("send_window", now) if now - stored.get("send_window", 0) < 600 else now,
+    }
+
+    send_sms_otp(phone, otp)
+    resp = {"success": True}
+    # Dev mode: expose OTP in response so it can be shown in UI
+    if not os.environ.get("SMS_PROVIDER"):
+        resp["dev_otp"]  = otp
+        resp["dev_mode"] = True
+    return jsonify(resp)
+
+
+@app.route("/api/otp/verify", methods=["POST"])
+def api_otp_verify():
+    data    = request.get_json(force=True) or {}
+    phone   = (data.get("phone") or "").strip().replace(" ", "")
+    otp_in  = str(data.get("otp") or "").strip()
+
+    if not phone or not otp_in:
+        return jsonify({"success": False, "error": "Phone and OTP are required."}), 400
+
+    stored = _otp_store.get(phone)
+    if not stored:
+        return jsonify({"success": False, "error": "OTP not found or expired. Request a new one."}), 400
+
+    now = time.time()
+    if now > stored["expires_at"]:
+        _otp_store.pop(phone, None)
+        return jsonify({"success": False, "error": "OTP expired. Request a new one."}), 400
+
+    if stored["attempts"] >= OTP_MAX_ATT:
+        _otp_store.pop(phone, None)
+        return jsonify({"success": False,
+                        "error": "Too many failed attempts. Request a fresh OTP."}), 400
+
+    if otp_in != stored["otp"]:
+        _otp_store[phone]["attempts"] += 1
+        left = OTP_MAX_ATT - _otp_store[phone]["attempts"]
+        return jsonify({"success": False,
+                        "error": f"Wrong OTP. {left} attempt{'s' if left != 1 else ''} left."}), 400
+
+    # ✓ Correct OTP
+    _otp_store.pop(phone, None)
+    username = get_or_create_user_by_phone(phone)
+    session.permanent    = True
+    session["logged_in"] = True
+    session["username"]  = username
+    return jsonify({"success": True, "redirect": "/"})
 
 @app.route("/api/users", methods=["GET"])
 @login_required
@@ -990,10 +1156,15 @@ def app_download_info():
 @app.route("/download/android")
 @login_required
 def download_android():
-    """Redirect to GitHub Releases APK download"""
-    from flask import redirect
-    apk_url = "https://github.com/prasannakrishnadaddala-beep/healthmate-flutter/releases/download/v1.0.0/healthmate.apk"
-    return redirect(apk_url)
+    """Serve the Android APK if it exists in /static/downloads/"""
+    from flask import send_from_directory
+    dl_dir = os.path.join(os.path.dirname(__file__), "static", "downloads")
+    apk_name = "healthmate.apk"
+    if os.path.exists(os.path.join(dl_dir, apk_name)):
+        return send_from_directory(dl_dir, apk_name,
+                                   as_attachment=True,
+                                   download_name="HealthMate.apk")
+    return jsonify({"error": "APK not yet available. Please check back later or use the PWA."}), 404
 
 @app.route("/api/analyze-nutrition", methods=["POST"])
 @login_required
