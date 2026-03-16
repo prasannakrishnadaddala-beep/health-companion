@@ -5,25 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>HealthMate — Personal Health Companion</title>
 
-<!-- PWA Manifest -->
-<link rel="manifest" href="/static/manifest.json">
+<!-- PWA Manifest — only load if file exists (suppress 404 via onerror) -->
+<link rel="manifest" href="/static/manifest.json" onerror="this.remove()">
 
-<!-- Theme & status bar -->
-<meta name="theme-color" content="#00d4c8">
-<meta name="msapplication-TileColor" content="#060b14">
-<meta name="msapplication-TileImage" content="/static/icons/icon-144x144.png">
+<!-- Theme & status bar — updated to match new light design -->
+<meta name="theme-color" content="#F4F2ED">
+<meta name="msapplication-TileColor" content="#1C1C1C">
 
 <!-- iOS PWA -->
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="HealthMate">
-<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
-<link rel="apple-touch-icon" sizes="152x152" href="/static/icons/icon-152x152.png">
-<link rel="apple-touch-icon" sizes="192x192" href="/static/icons/icon-192x192.png">
 
-<!-- Favicon -->
-<link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192x192.png">
-<link rel="shortcut icon" href="/static/favicon.ico">
+<!-- Favicon — inline SVG fallback so no 404 -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23E8FF47'/><path d='M26 16h-5l-3.5 10L11 6 7.5 16H6' stroke='%231A1A1A' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' fill='none'/></svg>">
 
 <!-- SEO / share -->
 <meta name="description" content="Your personal AI health companion — track vitals, medications, diet and appointments.">
@@ -599,7 +594,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 <script>
 
 const today = new Date().toISOString().split('T')[0];
-document.getElementById('sidebarDate').textContent = new Date().toLocaleDateString('en-IN', {day:'numeric',month:'short'});
+// sidebarDate removed in new icon-only sidebar — date shown in mobile header only
+const _sdEl = document.getElementById('sidebarDate');
+if (_sdEl) _sdEl.textContent = new Date().toLocaleDateString('en-IN', {day:'numeric',month:'short'});
 
 // ── Mobile helpers ────────────────────────────────────────────────────
 function injectMobileHeader(title, subtitle, actions='') {
@@ -614,7 +611,7 @@ function injectMobileHeader(title, subtitle, actions='') {
   hdr.innerHTML = `
     <div class="mobile-header-logo">
       <div class="logo-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="var(--bg)" stroke-width="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" stroke-width="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
       </div>
       <span>HealthMate</span>
     </div>
@@ -1804,7 +1801,7 @@ async function renderProfile() {
     </div>
 
     <!-- Patient ID Card -->
-    <div style="margin-bottom:20px;background:linear-gradient(135deg,#0d1525,#111d33);border:1px solid rgba(0,212,200,0.25);border-radius:16px;padding:20px;position:relative;overflow:hidden">
+    <div style="margin-bottom:20px;background:linear-gradient(135deg,#F4F2ED,#111d33);border:1px solid rgba(0,212,200,0.25);border-radius:16px;padding:20px;position:relative;overflow:hidden">
       <div style="position:absolute;top:-30px;right:-30px;width:140px;height:140px;background:radial-gradient(circle,rgba(232,255,71,0.1),transparent 70%);border-radius:50%"></div>
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:14px">
@@ -1832,15 +1829,15 @@ async function renderProfile() {
       <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">📲 Get the HealthMate App</div>
       <div style="font-size:12px;color:var(--text3);margin-bottom:14px">Install on your phone for the best offline experience</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <a href="/download/android" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#0d1525;border:1px solid rgba(0,229,160,0.3);border-radius:12px;text-decoration:none;flex:1;min-width:160px;transition:all 0.15s" onmouseover="this.style.background='rgba(0,229,160,0.08)'" onmouseout="this.style.background='#0d1525'">
+        <a href="/download/android" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#F4F2ED;border:1px solid rgba(0,229,160,0.3);border-radius:12px;text-decoration:none;flex:1;min-width:160px;transition:all 0.15s" onmouseover="this.style.background='rgba(0,229,160,0.08)'" onmouseout="this.style.background='#F4F2ED'">
           <div style="font-size:26px">🤖</div>
-          <div><div style="font-size:11px;color:var(--text3)">Download for</div><div style="font-size:14px;font-weight:700;color:#00e5a0">Android APK</div><div style="font-size:10px;color:var(--text3)">Free · Direct install</div></div>
+          <div><div style="font-size:11px;color:var(--text3)">Download for</div><div style="font-size:14px;font-weight:700;color:#10C981">Android APK</div><div style="font-size:10px;color:var(--text3)">Free · Direct install</div></div>
         </a>
-        <div onclick="document.getElementById('iosBox').style.display=document.getElementById('iosBox').style.display==='none'?'block':'none'" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#0d1525;border:1px solid rgba(0,153,255,0.3);border-radius:12px;cursor:pointer;flex:1;min-width:160px;transition:all 0.15s" onmouseover="this.style.background='rgba(0,153,255,0.08)'" onmouseout="this.style.background='#0d1525'">
+        <div onclick="document.getElementById('iosBox').style.display=document.getElementById('iosBox').style.display==='none'?'block':'none'" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#F4F2ED;border:1px solid rgba(0,153,255,0.3);border-radius:12px;cursor:pointer;flex:1;min-width:160px;transition:all 0.15s" onmouseover="this.style.background='rgba(0,153,255,0.08)'" onmouseout="this.style.background='#F4F2ED'">
           <div style="font-size:26px">🍎</div>
           <div><div style="font-size:11px;color:var(--text3)">Install on</div><div style="font-size:14px;font-weight:700;color:var(--accent2)">iPhone / iPad</div><div style="font-size:10px;color:var(--text3)">Add to Home Screen</div></div>
         </div>
-        <div onclick="typeof installPwa!=='undefined'?installPwa():document.getElementById('iosBox').style.display='block'" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#0d1525;border:1px solid rgba(124,111,255,0.3);border-radius:12px;cursor:pointer;flex:1;min-width:160px;transition:all 0.15s" onmouseover="this.style.background='rgba(124,111,255,0.08)'" onmouseout="this.style.background='#0d1525'">
+        <div onclick="typeof installPwa!=='undefined'?installPwa():document.getElementById('iosBox').style.display='block'" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#F4F2ED;border:1px solid rgba(124,111,255,0.3);border-radius:12px;cursor:pointer;flex:1;min-width:160px;transition:all 0.15s" onmouseover="this.style.background='rgba(124,111,255,0.08)'" onmouseout="this.style.background='#F4F2ED'">
           <div style="font-size:26px">🌐</div>
           <div><div style="font-size:11px;color:var(--text3)">Any device</div><div style="font-size:14px;font-weight:700;color:var(--accent3)">Web App (PWA)</div><div style="font-size:10px;color:var(--text3)">Offline · No install needed</div></div>
         </div>
@@ -1913,7 +1910,7 @@ async function renderProfile() {
           <div id="targetsDisplay">
             ${p.calorie_target ? `
             <div class="grid-2" style="gap:10px">
-              ${[['🔥 Calories',p.calorie_target,'kcal/day','var(--accent)'],['💪 Protein',p.protein_target,'g/day','var(--success)'],['🌾 Carbs',p.carb_target,'g/day','var(--warning)'],['🥑 Fat',p.fat_target,'g/day','var(--danger)'],['🥤 Water',p.water_target,'ml/day','#0d9488'],['🧬 Fiber','25-30','g/day','#639922']].map(([n,v,u,c])=>`<div style="background:var(--bg3);border-radius:var(--r);padding:12px;text-align:center;border:1px solid var(--border)"><div style="font-size:20px;font-weight:700;color:${c};font-family:var(--mono)">${v}</div><div style="font-size:10px;color:var(--text3)">${u}</div><div style="font-size:11px;font-weight:500;margin-top:2px;color:var(--text2)">${n}</div></div>`).join('')}
+              ${[['🔥 Calories',p.calorie_target,'kcal/day','var(--accent)'],['💪 Protein',p.protein_target,'g/day','var(--success)'],['🌾 Carbs',p.carb_target,'g/day','var(--warning)'],['🥑 Fat',p.fat_target,'g/day','var(--danger)'],['🥤 Water',p.water_target,'ml/day','#059669'],['🧬 Fiber','25-30','g/day','#639922']].map(([n,v,u,c])=>`<div style="background:var(--bg3);border-radius:var(--r);padding:12px;text-align:center;border:1px solid var(--border)"><div style="font-size:20px;font-weight:700;color:${c};font-family:var(--mono)">${v}</div><div style="font-size:10px;color:var(--text3)">${u}</div><div style="font-size:11px;font-weight:500;margin-top:2px;color:var(--text2)">${n}</div></div>`).join('')}
             </div>
             <div style="margin-top:12px;padding:10px 12px;background:rgba(0,212,200,0.06);border-radius:var(--r);font-size:12px;color:var(--accent)">💡 Targets calculated using Mifflin-St Jeor formula</div>
             ${p.email ? `<div style="margin-top:8px;padding:10px 12px;background:rgba(0,229,160,0.06);border:1px solid rgba(0,229,160,0.15);border-radius:var(--r);font-size:12px;color:var(--success)">📧 Diet reports → <strong>${p.email}</strong></div>` : ""}
@@ -2007,7 +2004,7 @@ async function saveProfile() {
 // ─── TOAST NOTIFICATION ──────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════════
 function showToast(msg, type='ok', duration=3000) {
-  const colors = { ok:'#00e5a0', warn:'#ffb347', error:'#ff4d6d', info:'#0099ff' };
+  const colors = { ok:'#10C981', warn:'#ffb347', error:'#ff4d6d', info:'#3B82F6' };
   const icons  = { ok:'✓', warn:'⚠️', error:'✕', info:'ℹ' };
   const t = document.createElement('div');
   t.style.cssText = `position:fixed;bottom:28px;right:28px;z-index:9999;background:var(--surface2);border:1px solid ${colors[type]}44;border-left:3px solid ${colors[type]};border-radius:10px;padding:12px 18px;font-size:13px;color:var(--text);display:flex;align-items:center;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,0.4);animation:slideIn 0.25s ease;max-width:340px`;
@@ -2211,7 +2208,7 @@ async function loadContacts() {
   }
   el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">` +
   contacts.map(c => {
-    const relColors = {Spouse:'#ff6eb4',Parent:'#ffb347',Sibling:'#7c6fff',Child:'#00d4c8',Friend:'#00e5a0',Caregiver:'#0099ff'};
+    const relColors = {Spouse:'#ff6eb4',Parent:'#ffb347',Sibling:'#7c6fff',Child:'#E8FF47',Friend:'#10C981',Caregiver:'#3B82F6'};
     const color = relColors[c.relationship] || 'var(--text2)';
     const initials = c.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
     return `
@@ -2332,16 +2329,24 @@ document.addEventListener('click', e => {
 
 // ─── Init ─────────────────────────────────────────────────────────────
 async function checkApiStatus() {
+  // apiStatusDot removed in icon-only sidebar; silently check connection
   try {
     const res = await fetch('/api/chat/history');
-    if (res.ok) document.getElementById('apiStatusDot').innerHTML = '🟢 Connected';
-    else document.getElementById('apiStatusDot').innerHTML = '🔴 Error';
-  } catch { document.getElementById('apiStatusDot').innerHTML = '🔴 Offline'; }
+    const dot = document.getElementById('apiStatusDot');
+    if (dot) dot.innerHTML = res.ok ? '🟢 Connected' : '🔴 Error';
+  } catch {
+    const dot = document.getElementById('apiStatusDot');
+    if (dot) dot.innerHTML = '🔴 Offline';
+  }
 }
 
 window.addEventListener('load', () => {
-  document.getElementById('loadingOverlay').classList.add('hidden');
-  switchTab('chat');
+  try {
+    document.getElementById('loadingOverlay').classList.add('hidden');
+  } catch(e) { console.warn('loadingOverlay not found', e); }
+  try {
+    switchTab('chat');
+  } catch(e) { console.error('switchTab failed', e); }
   checkApiStatus();
 });
 
@@ -2349,12 +2354,11 @@ window.addEventListener('load', () => {
 
 <!-- ── PWA: Service Worker + Install Prompt ─────────────────────────── -->
 <script>
-// Register service worker
+// Register service worker — skip silently if static files aren't deployed yet
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/static/sw.js')
       .then(reg => {
-        console.log('[SW] Registered:', reg.scope);
         // Check for updates every 60s
         setInterval(() => reg.update(), 60000);
         reg.addEventListener('updatefound', () => {
@@ -2366,7 +2370,7 @@ if ('serviceWorker' in navigator) {
           });
         });
       })
-      .catch(err => console.warn('[SW] Registration failed:', err));
+      .catch(() => {}); // silently ignore 404 — SW not deployed yet
   });
 }
 
@@ -2403,8 +2407,8 @@ function showInstallBanner() {
       </div>
     </div>
     <div style="display:flex;gap:8px;flex-shrink:0">
-      <button onclick="installPwa()" style="padding:8px 16px;background:linear-gradient(135deg,#00d4c8,#00b8ad);color:#001a1a;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Install</button>
-      <button onclick="document.getElementById('pwaInstallBanner').remove()" style="padding:8px 10px;background:transparent;border:1px solid rgba(255,255,255,0.1);color:var(--text2);border-radius:8px;font-size:13px;cursor:pointer">✕</button>
+      <button onclick="installPwa()" style="padding:8px 16px;background:linear-gradient(135deg,#E8FF47,#00b8ad);color:#001a1a;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Install</button>
+      <button onclick="document.getElementById('pwaInstallBanner').remove()" style="padding:8px 10px;background:transparent;border:1px solid rgba(0,0,0,0.15);color:var(--text2);border-radius:8px;font-size:13px;cursor:pointer">✕</button>
     </div>`;
   banner.style.cssText = `
     position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
@@ -2453,8 +2457,8 @@ if (isIos && !isInStandalone) {
         <div style="flex:1">
           <div style="font-size:13px;font-weight:600;color:#e8edf5;margin-bottom:4px">Install HealthMate on your iPhone</div>
           <div style="font-size:12px;color:var(--text2);line-height:1.6">
-            Tap <strong style="color:#00d4c8">Share</strong> <span style="font-size:14px">⬆️</span> then
-            <strong style="color:#00d4c8">"Add to Home Screen"</strong> <span style="font-size:14px">➕</span>
+            Tap <strong style="color:#E8FF47">Share</strong> <span style="font-size:14px">⬆️</span> then
+            <strong style="color:#E8FF47">"Add to Home Screen"</strong> <span style="font-size:14px">➕</span>
           </div>
         </div>
         <button onclick="document.getElementById('iosInstallTip').remove()" style="background:transparent;border:none;color:var(--text2);font-size:18px;cursor:pointer;padding:0;line-height:1;flex-shrink:0">✕</button>
