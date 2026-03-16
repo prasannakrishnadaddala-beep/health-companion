@@ -4,22 +4,34 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>HealthMate — Create Account</title>
-<meta name="theme-color" content="#070c18">
+<meta name="theme-color" content="#F4F2ED">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #070c18; --bg2: #0c1524; --bg3: #101e32;
-  --surface: #131e33; --surface2: #182540;
-  --border: rgba(255,255,255,0.08); --border2: rgba(255,255,255,0.14);
-  --text: #edf1fa; --text2: #8494b4; --text3: #44567a;
-  --accent: #22d3c8; --accent2: #3b9eff;
-  --danger: #ff4d72; --success: #10dfa0; --warning: #ffb830;
-  --font: 'Plus Jakarta Sans', sans-serif;
-  --display: 'Space Grotesk', sans-serif;
-  --r: 12px; --r2: 16px;
+  --bg:      #F4F2ED;
+  --bg2:     #EDEAE3;
+  --bg3:     #E6E3DA;
+  --surface: #FFFFFF;
+  --surface2:#F9F8F5;
+  --surface3:#EDEBE4;
+  --border:  rgba(0,0,0,0.07);
+  --border2: rgba(0,0,0,0.13);
+  --text:    #1A1A1A;
+  --text2:   #6B6B6B;
+  --text3:   #9E9E9E;
+  --accent:  #E8FF47;
+  --accent-fg:#1A1A1A;
+  --accent2: #1A1A1A;
+  --danger:  #FF4757;
+  --success: #10C981;
+  --warning: #FF9F43;
+  --hero-bg: #1C1C1C;
+  --font:    'Figtree', sans-serif;
+  --display: 'Figtree', sans-serif;
+  --r: 10px; --r2: 16px; --rpill: 100px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 html { height: 100%; }
@@ -36,25 +48,25 @@ body::before, body::after {
 }
 body::before {
   width: 400px; height: 400px; top: -120px; right: -80px;
-  background: radial-gradient(circle, rgba(59,158,255,0.08) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(232,255,71,0.15) 0%, transparent 70%);
 }
 body::after {
   width: 350px; height: 350px; bottom: -100px; left: -80px;
-  background: radial-gradient(circle, rgba(34,211,200,0.07) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(0,0,0,0.03) 0%, transparent 70%);
 }
 .card {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 24px; padding: 28px 24px;
   width: 100%; max-width: 420px;
   position: relative; z-index: 1;
-  box-shadow: 0 24px 60px rgba(0,0,0,0.4);
+  box-shadow: 0 12px 48px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.05);
 }
 .logo-area { text-align: center; margin-bottom: 24px; }
 .logo-icon {
   width: 48px; height: 48px; border-radius: 14px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  background: var(--accent);
   display: flex; align-items: center; justify-content: center;
-  margin: 0 auto 10px; box-shadow: 0 8px 24px rgba(34,211,200,0.3);
+  margin: 0 auto 10px; box-shadow: 0 6px 20px rgba(232,255,71,0.4);
 }
 .logo-icon svg { width: 22px; height: 22px; }
 .logo-title { font-family: var(--display); font-size: 20px; font-weight: 700; margin-bottom: 3px; }
@@ -75,20 +87,20 @@ body::after {
 .form-group input, .form-group select {
   width: 100%; padding: 12px 14px;
   border: 1.5px solid var(--border2);
-  border-radius: var(--r); background: var(--bg3);
+  border-radius: var(--r); background: var(--surface2);
   color: var(--text); font-size: 15px; font-family: var(--font);
   transition: all 0.2s; outline: none; -webkit-appearance: none;
 }
 .form-group select { cursor: pointer; }
 .form-group input:focus, .form-group select:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(34,211,200,0.12);
-  background: var(--bg2);
+  border-color: var(--text);
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
+  background: var(--surface);
 }
 .form-group input::placeholder { color: var(--text3); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media (max-width: 400px) { .form-row { grid-template-columns: 1fr; } }
-.form-group select option { background: var(--surface2); }
+.form-group select option { background: var(--surface); }
 .input-wrap { position: relative; }
 .input-wrap input { padding-right: 44px; }
 .pw-toggle {
@@ -100,30 +112,30 @@ body::after {
 .country-code {
   width: 78px; flex-shrink: 0; padding: 12px 10px;
   border: 1.5px solid var(--border2); border-radius: var(--r);
-  background: var(--bg3); color: var(--text); font-size: 14px;
+  background: var(--surface2); color: var(--text); font-size: 14px;
   font-family: var(--font); font-weight: 600; text-align: center;
   display: flex; align-items: center; justify-content: center; gap: 4px;
 }
 .btn-primary {
   width: 100%; padding: 14px;
-  background: linear-gradient(135deg, var(--accent), #00b8ad);
-  color: #001a1a; border: none; border-radius: var(--r);
+  background: var(--accent);
+  color: var(--accent-fg); border: none; border-radius: var(--rpill);
   font-size: 15px; font-weight: 700; font-family: var(--font);
   cursor: pointer; transition: all 0.2s; margin-top: 4px;
-  box-shadow: 0 6px 20px rgba(34,211,200,0.3); letter-spacing: 0.02em;
+  box-shadow: 0 6px 20px rgba(232,255,71,0.35); letter-spacing: 0.02em;
 }
-.btn-primary:hover { box-shadow: 0 8px 28px rgba(34,211,200,0.45); transform: translateY(-1px); }
+.btn-primary:hover { box-shadow: 0 8px 28px rgba(232,255,71,0.5); transform: translateY(-1px); }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 .alert {
   padding: 11px 14px; border-radius: 10px;
   font-size: 13px; display: flex; align-items: flex-start; gap: 8px;
   margin-bottom: 16px; line-height: 1.5;
 }
-.alert-error { background: rgba(255,77,114,0.1); color: var(--danger); border: 1px solid rgba(255,77,114,0.25); }
-.alert-success { background: rgba(16,223,160,0.1); color: var(--success); border: 1px solid rgba(16,223,160,0.25); }
+.alert-error { background: rgba(255,71,87,0.08); color: var(--danger); border: 1px solid rgba(255,71,87,0.25); }
+.alert-success { background: rgba(16,201,129,0.08); color: var(--success); border: 1px solid rgba(16,201,129,0.25); }
 .hint { font-size: 12px; color: var(--text3); margin-top: 5px; line-height: 1.5; }
 .footer-link { text-align: center; margin-top: 18px; font-size: 13px; color: var(--text3); }
-.footer-link a { color: var(--accent); text-decoration: none; font-weight: 600; }
+.footer-link a { color: var(--text); text-decoration: none; font-weight: 600; }
 .badge-optional {
   font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 6px;
   background: rgba(255,255,255,0.06); color: var(--text3);
@@ -132,7 +144,7 @@ body::after {
 }
 .spinner {
   display: inline-block; width: 16px; height: 16px;
-  border: 2px solid rgba(0,26,26,0.3); border-top-color: #001a1a;
+  border: 2px solid rgba(0,0,0,0.1); border-top-color: #1A1A1A;
   border-radius: 50%; animation: spin 0.6s linear infinite;
   vertical-align: middle; margin-right: 6px;
 }
@@ -144,8 +156,8 @@ body::after {
   flex: 1; height: 3px; border-radius: 2px;
   background: var(--surface2); transition: background 0.3s;
 }
-.step-dot.done { background: var(--accent); }
-.step-dot.active { background: var(--accent2); }
+.step-dot.done { background: var(--accent2); }
+.step-dot.active { background: var(--accent); }
 </style>
 </head>
 <body data-error="{{ error | default('') | replace('"', '&quot;') }}" data-success="{{ success | default('') | replace('"', '&quot;') }}">
@@ -244,7 +256,7 @@ body::after {
 
       <div style="display:flex;gap:10px">
         <button type="button" class="btn-primary" onclick="goStep1()"
-          style="background:var(--surface2);color:var(--text2);box-shadow:none;flex:0 0 48px;font-size:20px">
+          style="background:var(--surface3);color:var(--text2);box-shadow:none;border:1.5px solid var(--border2);flex:0 0 48px;font-size:20px">
           ←
         </button>
         <button type="button" class="btn-primary" id="step2Btn" onclick="goStep3()" disabled style="flex:1">
@@ -302,7 +314,7 @@ body::after {
 
       <div style="display:flex;gap:10px">
         <button type="button" class="btn-primary" onclick="goStep2()"
-          style="background:var(--surface2);color:var(--text2);box-shadow:none;flex:0 0 48px;font-size:20px">
+          style="background:var(--surface3);color:var(--text2);box-shadow:none;border:1.5px solid var(--border2);flex:0 0 48px;font-size:20px">
           ←
         </button>
         <button type="submit" class="btn-primary" id="submitBtn" style="flex:1">
