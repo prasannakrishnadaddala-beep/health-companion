@@ -209,13 +209,6 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
   width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px;
 }
 .sidebar.open .sidebar-footer { align-items: flex-start; padding-left: 18px; }
-.status-dot { display: flex; align-items: center; gap: 8px; }
-.dot-pulse { width: 7px; height: 7px; min-width: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success); animation: pulse 2s infinite; }
-.status-label {
-  font-size: 11px; color: rgba(255,255,255,0.35); white-space: nowrap;
-  opacity: 0; max-width: 0; overflow: hidden; transition: opacity 0.15s 0.1s, max-width 0.15s;
-}
-.sidebar.open .status-label { opacity: 1; max-width: 120px; }
 .sidebar-footer a {
   color: var(--sidebar-icon); font-size: 18px; text-decoration: none;
   width: 42px; height: 42px; border-radius: var(--rpill);
@@ -696,10 +689,6 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
     </div>
 
     <div class="sidebar-footer">
-      <div class="status-dot">
-        <div class="dot-pulse"></div>
-        <span class="status-label" id="apiStatusDot">Connected</span>
-      </div>
       <a href="/logout" title="Sign out">
         <span>⏻</span>
         <span class="logout-label">Sign out</span>
@@ -777,9 +766,6 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
   </div>
 
   <div class="msidebar-footer">
-    <div class="msidebar-status">
-      <div class="dot-pulse"></div> Connected
-    </div>
     <a href="/logout" class="msidebar-logout">
       <span>⏻</span> Sign Out
     </a>
@@ -2640,19 +2626,6 @@ document.addEventListener('click', e => {
 // ─── ENHANCED APPOINTMENTS ───────────────────────────────────────
 // ══════════════════════════════════════════════════════════════════
 
-// ─── Init ─────────────────────────────────────────────────────────────
-async function checkApiStatus() {
-  // apiStatusDot removed in icon-only sidebar; silently check connection
-  try {
-    const res = await fetch('/api/chat/history');
-    const dot = document.getElementById('apiStatusDot');
-    if (dot) dot.innerHTML = res.ok ? '🟢 Connected' : '🔴 Error';
-  } catch {
-    const dot = document.getElementById('apiStatusDot');
-    if (dot) dot.innerHTML = '🔴 Offline';
-  }
-}
-
 window.addEventListener('load', () => {
   try {
     document.getElementById('loadingOverlay').classList.add('hidden');
@@ -2660,7 +2633,6 @@ window.addEventListener('load', () => {
   try {
     switchTab('chat');
   } catch(e) { console.error('switchTab failed', e); }
-  checkApiStatus();
 });
 
 </script>
